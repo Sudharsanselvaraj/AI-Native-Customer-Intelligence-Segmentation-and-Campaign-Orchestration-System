@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+venv/
+node_modules/
+.next/
+dist/
+build/
+*.egg-info/
+.DS_Store
+postgres_data/
+alembic/versions/*.py
+!alembic/versions/.gitkeep

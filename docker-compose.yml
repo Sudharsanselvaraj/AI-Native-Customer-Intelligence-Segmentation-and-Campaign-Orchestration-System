@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ceip_crm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  crm:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file: ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  crm-worker:
+    build: ./backend
+    env_file: ./backend/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: celery -A app.core.celery_app worker -Q campaigns,analytics --loglevel=info --concurrency=4
+
+  channel-simulator:
+    build: ./channel-simulator
+    ports:
+      - "8001:8001"
+    env_file: ./channel-simulator/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./channel-simulator:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+  channel-worker:
+    build: ./channel-simulator
+    env_file: ./channel-simulator/.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./channel-simulator:/app
+    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=8
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - crm
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres_data:
