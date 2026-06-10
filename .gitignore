@@ -13,3 +13,5 @@ build/
 postgres_data/
 alembic/versions/*.py
 !alembic/versions/.gitkeep
+
+.claude/
