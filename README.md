@@ -25,23 +25,23 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                    Next.js Frontend (port 3000)                   │
+│                    Next.js Frontend (port 3000)                  │
 │  Dashboard · Customers · Segments · Campaigns · Analytics ·      │
-│  AI Copilot (agentic workflow + plan approval UI)                 │
-│  WebSocket client — live campaign event streaming                 │
+│  AI Copilot (agentic workflow + plan approval UI)                │
+│  WebSocket client — live campaign event streaming                │
 └────────────────────────────┬─────────────────────────────────────┘
                              │ REST API + WebSocket (/ws/campaigns/)
 ┌────────────────────────────▼─────────────────────────────────────┐
-│                FastAPI CRM Service (port 8000)                    │
-│                                                                   │
-│  /api/customers    /api/orders      /api/segments                 │
-│  /api/campaigns    /api/analytics   /api/copilot                  │
-│  /api/receipts     /ws/campaigns/{id}  /health                    │
-│                                                                   │
-│  Middleware: Request-ID injection · CORS · Structured logging     │
-│  Services: CustomerSvc · SegmentSvc · CampaignSvc · AISvc         │
-│  Workers:  CampaignWorker (queue: campaigns)                      │
-│            AnalyticsWorker (queue: analytics)                     │
+│                FastAPI CRM Service (port 8000)                   │
+│                                                                  │
+│  /api/customers    /api/orders      /api/segments                │
+│  /api/campaigns    /api/analytics   /api/copilot                 │
+│  /api/receipts     /ws/campaigns/{id}  /health                   │
+│                                                                  │
+│  Middleware: Request-ID injection · CORS · Structured logging    │
+│  Services: CustomerSvc · SegmentSvc · CampaignSvc · AISvc        │
+│  Workers:  CampaignWorker (queue: campaigns)                     │
+│            AnalyticsWorker (queue: analytics)                    │
 ├──────────────┬──────────────────────────┬────────────────────────┤
 │  PostgreSQL  │  Redis                   │  OpenRouter (Claude)   │
 │  (8 tables)  │  Broker + cache          │  NL→SQL · Campaign AI  │
@@ -49,10 +49,10 @@
 └──────────────┴──────────┬───────────────┴────────────────────────┘
                           │ HTTP POST /send
 ┌─────────────────────────▼────────────────────────────────────────┐
-│            Channel Simulator Service (port 8001)                  │
-│  POST /send  →  Celery task  →  simulate delivery lifecycle       │
-│                                                                   │
-│  Per-channel probability profiles:                                │
+│            Channel Simulator Service (port 8001)                 │
+│  POST /send  →  Celery task  →  simulate delivery lifecycle      │
+│                                                                  │
+│  Per-channel probability profiles:                               │
 │  WhatsApp: delivered 92% · opened 78% · clicked 22%              │
 │  Email:    delivered 88% · opened 35% · clicked 12%              │
 │  SMS:      delivered 95% · opened 90% · clicked 8%               │
@@ -79,7 +79,7 @@ customers ───────────────────────�
 │  │ has many                                           │
 │  ▼                                                    │
 orders                    segments                      │
-│ id (PK)                 │ id (PK)                    │
+│ id (PK)                 │ id (PK)                     │
 │ customer_id (FK) ───────┘ name, description           │
 │ amount, category          query_definition (JSON)     │
 │ purchase_date             estimated_size              │
@@ -138,15 +138,15 @@ Marketer      Frontend       CRM API        Celery         Channel Sim    Analyt
    │──create ──▶  │              │              │              │              │
    │  segment     │──POST ──────▶│              │              │              │
    │  (NL)        │  /segments/  │──Claude─────▶│              │              │
-   │              │  from-nl     │  NL→SQL       │              │              │
-   │              │◀─────────────│  (WHERE)      │              │              │
+   │              │  from-nl     │  NL→SQL      │              │              │
+   │              │◀─────────────│  (WHERE)     │              │              │
    │◀─────────────│  segment_id  │              │              │              │
    │              │              │              │              │              │
    │──generate ──▶│              │              │              │              │
    │  campaign    │──POST ──────▶│              │              │              │
    │              │  /campaigns/ │──Claude─────▶│              │              │
-   │              │  generate    │  generate     │              │              │
-   │              │◀─────────────│  (JSON)       │              │              │
+   │              │  generate    │  generate    │              │              │
+   │              │◀─────────────│  (JSON)      │              │              │
    │  reviews AI  │              │              │              │              │
    │  suggestion  │──POST ──────▶│              │              │              │
    │  saves it    │  /campaigns  │              │              │              │
@@ -164,7 +164,7 @@ Marketer      Frontend       CRM API        Celery         Channel Sim    Analyt
    │              │              │              │              │  Celery task │
    │              │              │◀─────────────────────────── │              │
    │              │              │  POST /webhook SENT         │              │
-   │              │              │──────────────────────────────────────────▶│
+   │              │              │──────────────────────────────────────────▶ │
    │              │              │  update_analytics.delay()   │              │
    │              │◀─ WS event ──│  broadcast to WebSocket     │              │
    │  dashboard   │  {SENT}      │              │              │              │
