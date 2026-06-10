@@ -115,6 +115,23 @@ COPILOT_TOOLS = [
                 "required": ["campaign_id"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "plan_workflow",
+            "description": "Given a high-level marketing goal, plan a full campaign workflow: segment → campaign → channel → launch. Returns a step-by-step plan for user approval before execution.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal": {
+                        "type": "string",
+                        "description": "The marketing goal, e.g. 'increase purchases from dormant users'"
+                    }
+                },
+                "required": ["goal"]
+            }
+        }
     }
 ]
 
@@ -289,6 +306,115 @@ Based on the segment and goal, output ONLY JSON:
             "message": "I've completed the requested actions.",
             "actions_taken": actions_taken,
         }
+
+
+    def generate_insights(self, stats: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generate AI-powered insights from dashboard analytics."""
+        try:
+            summary = (
+                f"Total customers: {stats.get('total_customers', 0)}, "
+                f"Total revenue: ₹{stats.get('total_revenue', 0):,.0f}, "
+                f"Total campaigns: {stats.get('total_campaigns', 0)}, "
+                f"Messages sent: {stats.get('total_messages_sent', 0)}, "
+                f"Avg delivery rate: {stats.get('avg_delivery_rate', 0):.1%}, "
+                f"Avg open rate: {stats.get('avg_open_rate', 0):.1%}, "
+                f"Avg CTR: {stats.get('avg_ctr', 0):.1%}, "
+                f"Avg conversion rate: {stats.get('avg_conversion_rate', 0):.1%}. "
+                f"Top campaign: {stats.get('campaign_performance', [{}])[0].get('name', 'N/A') if stats.get('campaign_performance') else 'N/A'}."
+            )
+            response = self.client.chat.completions.create(
+                model=settings.AI_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a marketing analytics expert. Given CRM performance stats, generate 3-5 actionable insights.
+Respond ONLY with a JSON array (no markdown):
+[
+  {
+    "type": "warning|opportunity|success|info",
+    "title": "short title",
+    "description": "1-2 sentence insight",
+    "action": "suggested action or null"
+  }
+]"""
+                    },
+                    {"role": "user", "content": f"Analyze these CRM stats:\n{summary}"}
+                ],
+                max_tokens=800,
+                temperature=0.5,
+            )
+            raw = response.choices[0].message.content.strip()
+            raw = re.sub(r"```(?:json)?", "", raw).strip().strip("`")
+            return json.loads(raw)
+        except Exception as e:
+            logger.error("insights_generation_failed", error=str(e))
+            return [
+                {
+                    "type": "info",
+                    "title": "Analytics overview",
+                    "description": f"You have {stats.get('total_customers', 0)} customers and {stats.get('total_campaigns', 0)} campaigns running.",
+                    "action": "Launch a new campaign to engage your audience."
+                }
+            ]
+
+    def plan_campaign_workflow(
+        self,
+        goal: str,
+        analytics_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Agentic planning: given a high-level marketing goal, return a step-by-step
+        workflow plan (segment definition, campaign brief, channel recommendation).
+        """
+        try:
+            response = self.client.chat.completions.create(
+                model=settings.AI_MODEL,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a senior marketing strategist. Given a goal and analytics context,
+create a complete campaign workflow plan. Respond ONLY with this JSON (no markdown):
+{
+  "goal_summary": "rephrased goal",
+  "segment": {
+    "name": "segment name",
+    "description": "who to target",
+    "natural_language": "NL query for the segment"
+  },
+  "campaign": {
+    "name": "campaign name",
+    "message_template": "personalized message with {customer_name}",
+    "channel": "whatsapp|email|sms|rcs",
+    "channel_confidence": 0.85,
+    "channel_reasoning": "why this channel"
+  },
+  "expected_outcomes": {
+    "audience_size": "estimated size description",
+    "delivery_rate": 0.90,
+    "open_rate": 0.35,
+    "conversion_rate": 0.08
+  },
+  "steps": [
+    {"step": 1, "action": "create_segment", "description": "..."},
+    {"step": 2, "action": "create_campaign", "description": "..."},
+    {"step": 3, "action": "launch_campaign", "description": "..."}
+  ]
+}"""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Goal: {goal}\n\nCurrent analytics: {json.dumps(analytics_context, default=str)[:800]}"
+                    }
+                ],
+                max_tokens=1200,
+                temperature=0.6,
+            )
+            raw = response.choices[0].message.content.strip()
+            raw = re.sub(r"```(?:json)?", "", raw).strip().strip("`")
+            return json.loads(raw)
+        except Exception as e:
+            logger.error("workflow_planning_failed", error=str(e))
+            raise ValueError(f"Failed to plan workflow: {e}")
 
 
 ai_service = AIService()

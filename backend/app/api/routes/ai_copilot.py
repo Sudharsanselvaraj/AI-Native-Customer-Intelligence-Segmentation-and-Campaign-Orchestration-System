@@ -84,6 +84,17 @@ def make_tool_executor(db: Session):
             except ValueError as e:
                 return {"error": str(e)}
 
+        elif tool_name == "plan_workflow":
+            goal = args["goal"]
+            stats = analytics_service.get_dashboard_stats(db)
+            plan = ai_service.plan_campaign_workflow(goal, {
+                "total_customers": stats["total_customers"],
+                "avg_open_rate": stats["avg_open_rate"],
+                "avg_ctr": stats["avg_ctr"],
+                "top_channels": stats["channel_breakdown"][:3],
+            })
+            return {"plan": plan, "requires_approval": True}
+
         return {"error": f"Unknown tool: {tool_name}"}
 
     return execute_tool

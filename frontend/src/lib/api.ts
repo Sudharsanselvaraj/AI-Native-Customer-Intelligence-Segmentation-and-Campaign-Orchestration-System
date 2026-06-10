@@ -63,6 +63,9 @@ export const getCampaignAnalytics = (id: string) =>
 export const getDashboard = () =>
   api.get("/api/analytics/dashboard").then((r) => r.data);
 
+export const getInsights = () =>
+  api.get("/api/analytics/insights").then((r) => r.data);
+
 // AI Copilot
 export const chatWithCopilot = (data: {
   message: string;

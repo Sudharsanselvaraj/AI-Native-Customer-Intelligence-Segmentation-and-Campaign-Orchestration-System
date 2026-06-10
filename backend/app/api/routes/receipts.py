@@ -10,7 +10,6 @@ from app.schemas.schemas import BulkWebhookCallback, WebhookCallback
 logger = structlog.get_logger()
 router = APIRouter()
 
-# Map event types to communication status upgrades (only move forward)
 STATUS_ORDER = [
     CommunicationStatusEnum.PENDING,
     CommunicationStatusEnum.SENT,
@@ -25,19 +24,21 @@ EVENT_TO_STATUS = {
 }
 
 
-def _process_event(db: Session, event: WebhookCallback):
+def _process_event(db: Session, event: WebhookCallback) -> str:
+    """Returns 'processed', 'skipped', or raises HTTPException."""
     comm = db.query(Communication).filter(Communication.id == event.communication_id).first()
     if not comm:
         logger.warning("receipt_unknown_comm", comm_id=event.communication_id)
-        return False
+        raise HTTPException(404, f"Communication {event.communication_id} not found")
 
-    # Idempotency: skip if exact event already recorded
+    # Idempotency: skip if exact event already recorded (except repeatable events)
     existing = db.query(CommunicationEvent).filter(
         CommunicationEvent.communication_id == event.communication_id,
         CommunicationEvent.event_type == event.event_type,
     ).first()
     if existing and event.event_type not in (EventTypeEnum.CLICKED, EventTypeEnum.CONVERTED):
-        return True  # already processed
+        logger.info("receipt_duplicate_skipped", comm_id=event.communication_id, event=event.event_type)
+        return "skipped"
 
     ev = CommunicationEvent(
         communication_id=event.communication_id,
@@ -47,7 +48,6 @@ def _process_event(db: Session, event: WebhookCallback):
     )
     db.add(ev)
 
-    # Update comm status (only upgrade, never downgrade unless FAILED)
     new_status = EVENT_TO_STATUS.get(event.event_type)
     if new_status and new_status != comm.status:
         if new_status == CommunicationStatusEnum.FAILED:
@@ -58,33 +58,48 @@ def _process_event(db: Session, event: WebhookCallback):
 
     db.flush()
 
-    # Async analytics update
     from app.workers.analytics_worker import update_campaign_analytics
     update_campaign_analytics.delay(comm.campaign_id)
-    return True
+
+    # Broadcast to WebSocket subscribers
+    try:
+        from app.core.ws_manager import ws_manager
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            asyncio.ensure_future(ws_manager.broadcast(comm.campaign_id, {
+                "communication_id": event.communication_id,
+                "event_type": event.event_type.value,
+                "event_time": event.event_time.isoformat(),
+            }))
+    except Exception:
+        pass  # WebSocket broadcast is best-effort
+
+    logger.info("receipt_processed", comm_id=event.communication_id, event=event.event_type, campaign=comm.campaign_id)
+    return "processed"
 
 
 @router.post("/webhook")
 def webhook(payload: WebhookCallback, db: Session = Depends(get_db)):
-    try:
-        _process_event(db, payload)
-        db.commit()
-        return {"status": "ok"}
-    except Exception as e:
-        db.rollback()
-        logger.error("webhook_failed", error=str(e))
-        raise HTTPException(500, "Failed to process event")
+    status = _process_event(db, payload)
+    db.commit()
+    return {"status": status}
 
 
 @router.post("/webhook/bulk")
 def bulk_webhook(payload: BulkWebhookCallback, db: Session = Depends(get_db)):
-    processed, failed = 0, 0
+    processed, failed, skipped = 0, 0, 0
     for event in payload.events:
         try:
-            _process_event(db, event)
-            processed += 1
+            result = _process_event(db, event)
+            if result == "skipped":
+                skipped += 1
+            else:
+                processed += 1
+        except HTTPException:
+            failed += 1
         except Exception as e:
             logger.error("bulk_event_failed", comm_id=event.communication_id, error=str(e))
             failed += 1
     db.commit()
-    return {"processed": processed, "failed": failed}
+    return {"total": len(payload.events), "processed": processed, "skipped": skipped, "failed": failed}
