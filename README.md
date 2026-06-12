@@ -89,10 +89,10 @@ The rest of the stack (two-service async delivery loop, materialized analytics, 
 │  POST /send  →  Celery task  →  simulate delivery lifecycle      │
 │                                                                  │
 │  Per-channel probability profiles:                               │
-│  WhatsApp  delivered 92% · opened 78% · clicked 22%             │
-│  Email     delivered 88% · opened 35% · clicked 12%             │
-│  SMS       delivered 95% · opened 90% · clicked  8%             │
-│  RCS       delivered 85% · opened 60% · clicked 18%             │
+│  WhatsApp  delivered 92% · opened 78% · clicked 22%              │
+│  Email     delivered 88% · opened 35% · clicked 12%              │
+│  SMS       delivered 95% · opened 90% · clicked  8%              │
+│  RCS       delivered 85% · opened 60% · clicked 18%              │
 └─────────────────────────┬────────────────────────────────────────┘
                           │ POST /api/receipts/webhook (async callbacks)
                           └──────────────▶ CRM closes the event loop
@@ -188,25 +188,25 @@ customers ───────────────────────�
 │  1:N                                                          │
 ▼                                                               │
 orders                    segments                              │
-│ id · customer_id (FK)   │ id · name · description            │
-│ amount · category       │ query_definition (JSON WHERE)      │
-│ purchase_date           │ estimated_size                     │
-│                         │ is_smart · created_at              │
+│ id · customer_id (FK)   │ id · name · description             │
+│ amount · category       │ query_definition (JSON WHERE)       │ 
+│ purchase_date           │ estimated_size                      │
+│                         │ is_smart · created_at               │
                           │                                     │
                           │ 1:N                                 │
                           ▼                                     │
                        campaigns                                │
-                       │ id · name · description               │
-                       │ channel (enum)                        │
-                       │ segment_id (FK)                       │
-                       │ status (enum)                         │
-                       │ message_template                      │
-                       │ ai_generated · expected_*             │
-                       │ started_at · completed_at             │
-                       │                                       │
-                       │ 1:N                                   │
-                       ▼                                       │
-                    communications ◄────────────────────────── ┘
+                       │ id · name · description                │
+                       │ channel (enum)                         │
+                       │ segment_id (FK)                        │
+                       │ status (enum)                          │
+                       │ message_template                       │
+                       │ ai_generated · expected_*              │
+                       │ started_at · completed_at              │
+                       │                                        │
+                       │ 1:N                                    │
+                       ▼                                        │
+                    communications ◄────────────────────────────┘
                     │ id · campaign_id (FK)     (customer_id FK)
                     │ customer_id (FK)
                     │ message · status (enum)
