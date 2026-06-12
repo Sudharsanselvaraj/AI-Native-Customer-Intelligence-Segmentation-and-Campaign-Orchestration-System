@@ -26,11 +26,6 @@ The platform orchestrates customer discovery, behavioral analysis, segmentation,
 > [!TIP]
 >
 > Just getting started? AsterCRM can automatically identify high-value customer segments, predict customer behavior, generate personalized marketing campaigns, recommend engagement strategies, analyze campaign performance, and provide AI-driven business insights through a human-in-the-loop autonomous CRM workflow.
-# ShopperReach CRM — AI-Native Customer Engagement Platform
-
-> Built for the Xeno Engineering Internship Assignment. An AI-native mini CRM enabling brands to discover audiences, craft personalised campaigns, dispatch communications, and track engagement in real-time — all accelerated by an embedded AI copilot.
-
----
 
 ## Table of Contents
 
