@@ -1,3 +1,44 @@
+<div align="center">
+  <img alt="AsterCRM Logo" src="README assets/astercrm-logo.png" width="35%">
+</div>
+
+<h1 align="center">AsterCRM</h1>
+
+<p align="center">
+  <strong>The Autonomous Customer Engagement Intelligence Platform.</strong>
+</p>
+
+<p align="center">
+  Transform customer data into AI-powered segments, campaigns, predictions, and actionable business insights.
+</p>
+
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
+  </a>
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Node.js-20-339933?logo=node.js" alt="Node.js">
+  <img src="https://img.shields.io/badge/version-v1.0.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/status-production-success" alt="Status">
+  <img src="https://img.shields.io/badge/architecture-agentic-purple" alt="Architecture">
+</p>
+
+<p align="center">
+  <a href="YOUR_DEMO_VIDEO_LINK">
+    <img src="https://img.shields.io/badge/Watch-Demo%20Video-red?style=for-the-badge&logo=youtube" alt="Demo Video">
+  </a>
+</p>
+
+---
+
+AsterCRM is an autonomous customer engagement intelligence platform that transforms customer data into actionable insights, intelligent audience segments, AI-generated campaigns, and predictive business outcomes.
+
+The platform orchestrates customer discovery, behavioral analysis, segmentation, campaign generation, performance tracking, and AI-powered decision-making through a unified agentic workflow.
+
+> [!TIP]
+>
+> Just getting started? AsterCRM can automatically identify high-value customer segments, predict customer behavior, generate personalized marketing campaigns, recommend engagement strategies, analyze campaign performance, and provide AI-driven business insights through a human-in-the-loop autonomous CRM workflow.
+
 # ShopperReach CRM — AI-Native Customer Engagement Platform
 
 > Built for the Xeno Engineering Internship Assignment. An AI-native mini CRM enabling brands to discover audiences, craft personalised campaigns, dispatch communications, and track engagement in real-time — all accelerated by an embedded AI copilot.
