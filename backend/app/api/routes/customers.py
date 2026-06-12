@@ -4,8 +4,12 @@ from typing import Optional
 import math
 
 from app.db.session import get_db
+from app.models.models import Customer
 from app.services.customer_service import customer_service
-from app.schemas.schemas import CustomerCreate, CustomerUpdate, CustomerListResponse, ImportResponse
+from app.schemas.schemas import (
+    CustomerCreate, CustomerUpdate, CustomerListResponse, ImportResponse,
+    BulkCustomerImportRequest, BulkImportResponse,
+)
 
 router = APIRouter()
 
@@ -62,3 +66,37 @@ async def import_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
     content = await file.read()
     result = customer_service.import_from_csv(db, content)
     return result
+
+
+@router.post("/bulk", response_model=BulkImportResponse)
+def bulk_import_customers(data: BulkCustomerImportRequest, db: Session = Depends(get_db)):
+    imported, skipped, failed = 0, 0, 0
+    errors: list[str] = []
+
+    for i, row in enumerate(data.rows, start=1):
+        try:
+            email = row.email.strip().lower()
+            if db.query(Customer).filter(Customer.email == email).first():
+                skipped += 1
+                continue
+            gender = row.gender.strip().lower() if row.gender else None
+            if gender and gender not in ("male", "female", "other"):
+                gender = None
+            db.add(Customer(
+                name=row.name.strip(),
+                email=email,
+                phone=row.phone.strip() if row.phone else None,
+                city=row.city.strip() if row.city else None,
+                gender=gender,
+                age=row.age,
+            ))
+            imported += 1
+            if imported % 100 == 0:
+                db.flush()
+        except Exception as e:
+            failed += 1
+            if len(errors) < 50:
+                errors.append(f"Row {i}: {str(e)}")
+
+    db.commit()
+    return BulkImportResponse(imported=imported, skipped=skipped, failed=failed, errors=errors)

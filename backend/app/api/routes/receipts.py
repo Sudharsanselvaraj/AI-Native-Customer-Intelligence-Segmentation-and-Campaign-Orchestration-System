@@ -44,7 +44,7 @@ def _process_event(db: Session, event: WebhookCallback) -> str:
         communication_id=event.communication_id,
         event_type=event.event_type,
         event_time=event.event_time,
-        metadata=event.metadata,
+        event_metadata=event.metadata,
     )
     db.add(ev)
 

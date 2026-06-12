@@ -163,7 +163,7 @@ class CommunicationEvent(Base):
     communication_id = Column(String, ForeignKey("communications.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(SAEnum(EventTypeEnum), nullable=False)
     event_time = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column("metadata", JSON, nullable=True)
 
     communication = relationship("Communication", back_populates="events")
 

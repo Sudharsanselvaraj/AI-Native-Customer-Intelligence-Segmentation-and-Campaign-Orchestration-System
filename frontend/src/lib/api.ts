@@ -40,6 +40,9 @@ export const createSegmentFromNL = (data: { natural_language: string; name?: str
 export const deleteSegment = (id: string) =>
   api.delete(`/api/segments/${id}`);
 
+export const getSegmentCustomers = (id: string, params?: Record<string, any>) =>
+  api.get(`/api/segments/${id}/customers`, { params }).then((r) => r.data);
+
 // Campaigns
 export const getCampaigns = (params?: Record<string, any>) =>
   api.get("/api/campaigns", { params }).then((r) => r.data);
@@ -65,6 +68,25 @@ export const getDashboard = () =>
 
 export const getInsights = () =>
   api.get("/api/analytics/insights").then((r) => r.data);
+
+export const getAnalyticsCampaigns = () =>
+  api.get("/api/analytics/campaigns").then((r) => r.data);
+
+export const getChannelAnalytics = () =>
+  api.get("/api/analytics/channels").then((r) => r.data);
+
+export const getRecentActivity = () =>
+  api.get("/api/analytics/activity").then((r) => r.data);
+
+export const getRevenueTrend = () =>
+  api.get("/api/analytics/revenue-trend").then((r) => r.data);
+
+// Bulk Import
+export const bulkImportCustomers = (rows: any[]) =>
+  api.post("/api/customers/bulk", { rows }).then((r) => r.data);
+
+export const bulkImportOrders = (rows: any[]) =>
+  api.post("/api/orders/bulk", { rows }).then((r) => r.data);
 
 // AI Copilot
 export const chatWithCopilot = (data: {

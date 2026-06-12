@@ -102,6 +102,7 @@ class OrderCreate(OrderBase):
 class OrderResponse(OrderBase):
     id: str
     created_at: datetime
+    customer_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -323,6 +324,38 @@ class ChannelRecommendationResponse(BaseModel):
 class ImportResponse(BaseModel):
     imported: int
     skipped: int
+    errors: List[str]
+
+
+class BulkCustomerRow(BaseModel):
+    name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    gender: Optional[str] = None
+    age: Optional[int] = None
+
+
+class BulkCustomerImportRequest(BaseModel):
+    rows: List[BulkCustomerRow]
+
+
+class BulkOrderRow(BaseModel):
+    customer_id: Optional[str] = None
+    customer_email: Optional[str] = None
+    amount: float
+    category: Optional[str] = None
+    purchase_date: str
+
+
+class BulkOrderImportRequest(BaseModel):
+    rows: List[BulkOrderRow]
+
+
+class BulkImportResponse(BaseModel):
+    imported: int
+    skipped: int
+    failed: int
     errors: List[str]
 
 
