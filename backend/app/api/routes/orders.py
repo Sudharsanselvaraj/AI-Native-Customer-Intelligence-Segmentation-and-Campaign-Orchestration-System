@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Optional
 import math
+import csv
+import io
 
 from app.db.session import get_db
 from app.models.models import Order, Customer
@@ -58,6 +61,41 @@ def create_order(data: OrderCreate, db: Session = Depends(get_db)):
 def list_categories(db: Session = Depends(get_db)):
     rows = db.query(Order.category).distinct().filter(Order.category.isnot(None)).all()
     return [r[0] for r in rows]
+
+
+@router.get("/export/csv")
+def export_orders_csv(
+    customer_id: Optional[str] = None,
+    category: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    q = db.query(Order).join(Customer, Order.customer_id == Customer.id)
+    if customer_id:
+        q = q.filter(Order.customer_id == customer_id)
+    if category:
+        q = q.filter(Order.category == category)
+    rows = q.order_by(desc(Order.purchase_date)).limit(10000).all()
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        "id", "customer_id", "customer_name", "amount", "category", "purchase_date",
+    ])
+    writer.writeheader()
+    for o in rows:
+        writer.writerow({
+            "id": o.id,
+            "customer_id": o.customer_id,
+            "customer_name": o.customer.name if o.customer else "",
+            "amount": o.amount,
+            "category": o.category or "",
+            "purchase_date": o.purchase_date.isoformat() if o.purchase_date else "",
+        })
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=orders.csv"},
+    )
 
 
 @router.post("/bulk", response_model=BulkImportResponse)

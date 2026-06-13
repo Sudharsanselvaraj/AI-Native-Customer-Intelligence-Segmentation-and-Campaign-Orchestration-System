@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getCampaigns, getSegments, generateCampaign, createCampaign, launchCampaign } from "@/lib/api";
+import { getCampaigns, getSegments, generateCampaign, createCampaign, launchCampaign, deleteCampaign } from "@/lib/api";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import {
   Megaphone, Plus, Sparkles, RefreshCw, Send, Eye,
   Target, Zap, Gift, ShoppingCart, Star, Heart,
-  CheckCircle2, Clock, TrendingUp, BarChart2, Users, X
+  CheckCircle2, Clock, TrendingUp, BarChart2, Users, X, Trash2
 } from "lucide-react";
 
 type Campaign = {
@@ -130,6 +130,8 @@ export default function CampaignsPage() {
   const [launching, setLaunching] = useState<string | null>(null);
   const [generated, setGenerated] = useState<any>(null);
   const [selSeg, setSelSeg]       = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
+  const [deleting, setDeleting]   = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -173,6 +175,17 @@ export default function CampaignsPage() {
       setCampaigns(Array.isArray(d) ? d : d.campaigns || []);
     } catch (e) { console.error(e); }
     finally { setGenerating(false); }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return; setDeleting(true);
+    try {
+      await deleteCampaign(deleteTarget.id);
+      setDeleteTarget(null);
+      const d: any = await getCampaigns();
+      setCampaigns(Array.isArray(d) ? d : d.campaigns || d.items || []);
+    } catch (e: any) { alert(e?.response?.data?.detail || "Failed to delete campaign."); }
+    finally { setDeleting(false); }
   }
 
   async function handleLaunch(id: string) {
@@ -289,15 +302,24 @@ export default function CampaignsPage() {
                         {formatPercent(ctr)}
                       </td>
                       <td className="py-3 pr-5">
-                        {isDraft && (
-                          <button onClick={() => handleLaunch(c.id)}
-                            disabled={launching === c.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-semibold text-white"
-                            style={{ background: launching===c.id ? "#93C5FD" : "#2563EB", cursor: launching===c.id?"wait":"pointer" }}>
-                            {launching===c.id ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Send className="w-3 h-3"/>}
-                            {launching===c.id ? "…" : "Launch"}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {isDraft && (
+                            <button onClick={(e) => { e.stopPropagation(); handleLaunch(c.id); }}
+                              disabled={launching === c.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-semibold text-white"
+                              style={{ background: launching===c.id ? "#93C5FD" : "#2563EB", cursor: launching===c.id?"wait":"pointer" }}>
+                              {launching===c.id ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Send className="w-3 h-3"/>}
+                              {launching===c.id ? "…" : "Launch"}
+                            </button>
+                          )}
+                          {c.status?.toLowerCase() !== "running" && (
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
+                              className="w-7 h-7 rounded-[6px] flex items-center justify-center hover:bg-red-50 transition-colors"
+                              style={{ border: "1px solid #FECACA" }}>
+                              <Trash2 className="w-3.5 h-3.5" style={{ color: "#DC2626" }} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -448,6 +470,27 @@ export default function CampaignsPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="bg-white rounded-[16px] w-full max-w-sm shadow-2xl p-6" style={{ border: "1px solid #E5E7EB" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: "#FEF2F2" }}>
+              <Trash2 className="w-5 h-5" style={{ color: "#DC2626" }} />
+            </div>
+            <h2 className="text-[15px] font-semibold mb-1" style={{ color: "#111827" }}>Delete Campaign</h2>
+            <p className="text-[13px] mb-5" style={{ color: "#6B7280" }}>
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-medium" style={{ border: "1px solid #E5E7EB", color: "#374151" }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white" style={{ background: deleting ? "#FCA5A5" : "#DC2626" }}>
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
             </div>
           </div>
         </div>

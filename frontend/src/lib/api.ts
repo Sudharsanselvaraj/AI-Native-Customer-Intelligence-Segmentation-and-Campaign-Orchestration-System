@@ -20,12 +20,24 @@ export const createCustomer = (data: any) =>
 export const getCities = () =>
   api.get("/api/customers/cities").then((r) => r.data);
 
+export const updateCustomer = (id: string, data: any) =>
+  api.patch(`/api/customers/${id}`, data).then((r) => r.data);
+
+export const deleteCustomer = (id: string) =>
+  api.delete(`/api/customers/${id}`);
+
+export const exportCustomersCSV = (params?: Record<string, any>) =>
+  api.get("/api/customers/export/csv", { params, responseType: "blob" }).then((r) => r.data);
+
 // Orders
 export const getOrders = (params?: Record<string, any>) =>
   api.get("/api/orders", { params }).then((r) => r.data);
 
 export const getCategories = () =>
   api.get("/api/orders/categories").then((r) => r.data);
+
+export const exportOrdersCSV = (params?: Record<string, any>) =>
+  api.get("/api/orders/export/csv", { params, responseType: "blob" }).then((r) => r.data);
 
 // Segments
 export const getSegments = (params?: Record<string, any>) =>
@@ -61,6 +73,9 @@ export const launchCampaign = (id: string) =>
 
 export const getCampaignAnalytics = (id: string) =>
   api.get(`/api/campaigns/${id}/analytics`).then((r) => r.data);
+
+export const deleteCampaign = (id: string) =>
+  api.delete(`/api/campaigns/${id}`);
 
 // Analytics
 export const getDashboard = () =>

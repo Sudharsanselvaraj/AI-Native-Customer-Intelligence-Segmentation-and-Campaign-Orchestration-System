@@ -244,11 +244,13 @@ export default function Customer360Page() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
+          <button onClick={() => router.push(`/campaigns?customer_ids=${customer?.id}`)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
             style={{ border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#2563EB" }}>
             <Megaphone className="w-3.5 h-3.5" />Add to Campaign
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
+          <button onClick={() => { if (customer?.email) window.location.href = `mailto:${customer.email}`; }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
             style={{ border: "1px solid #E5E7EB", background: "#fff", color: "#374151" }}>
             <Mail className="w-3.5 h-3.5" />Contact
           </button>

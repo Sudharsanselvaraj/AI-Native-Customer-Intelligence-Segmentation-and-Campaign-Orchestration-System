@@ -86,6 +86,18 @@ def update_campaign(campaign_id: str, data: CampaignUpdate, db: Session = Depend
     return c
 
 
+@router.delete("/{campaign_id}", status_code=204)
+def delete_campaign(campaign_id: str, db: Session = Depends(get_db)):
+    from app.models.models import Campaign
+    c = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not c:
+        raise HTTPException(404, "Campaign not found")
+    if c.status == "running":
+        raise HTTPException(400, "Cannot delete a running campaign")
+    db.delete(c)
+    db.commit()
+
+
 @router.post("/{campaign_id}/launch")
 def launch_campaign(campaign_id: str, db: Session = Depends(get_db)):
     try:

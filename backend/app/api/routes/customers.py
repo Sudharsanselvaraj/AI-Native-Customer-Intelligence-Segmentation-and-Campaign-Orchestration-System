@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import math
+import csv
+import io
 
 from app.db.session import get_db
 from app.models.models import Customer
@@ -59,6 +62,52 @@ def update_customer(customer_id: str, data: CustomerUpdate, db: Session = Depend
     if not c:
         raise HTTPException(404, "Customer not found")
     return customer_service.enrich_customer_response(db, c)
+
+
+@router.delete("/{customer_id}", status_code=204)
+def delete_customer(customer_id: str, db: Session = Depends(get_db)):
+    c = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not c:
+        raise HTTPException(404, "Customer not found")
+    db.delete(c)
+    db.commit()
+
+
+@router.get("/export/csv")
+def export_customers_csv(
+    search: Optional[str] = None,
+    city: Optional[str] = None,
+    gender: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    items, _ = customer_service.get_customers(db, page=1, size=10000, search=search, city=city, gender=gender)
+    enriched = [customer_service.enrich_customer_response(db, c) for c in items]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        "id", "name", "email", "phone", "city", "gender", "age",
+        "total_orders", "total_spent", "last_purchase_date",
+    ])
+    writer.writeheader()
+    for c in enriched:
+        writer.writerow({
+            "id": c.get("id", ""),
+            "name": c.get("name", ""),
+            "email": c.get("email", ""),
+            "phone": c.get("phone", "") or "",
+            "city": c.get("city", "") or "",
+            "gender": c.get("gender", "") or "",
+            "age": c.get("age", "") or "",
+            "total_orders": c.get("total_orders", 0),
+            "total_spent": c.get("total_spent", 0),
+            "last_purchase_date": c.get("last_purchase_date", "") or "",
+        })
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=customers.csv"},
+    )
 
 
 @router.post("/import/csv", response_model=ImportResponse)

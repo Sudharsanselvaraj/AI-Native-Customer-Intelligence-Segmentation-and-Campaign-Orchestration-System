@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getDashboard, getRecentActivity, getChannelAnalytics } from "@/lib/api";
 import { StatCard } from "@/components/StatCard";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
@@ -84,11 +84,14 @@ const ttip = {
 };
 
 export default function DashboardPage() {
-  const [data, setData]         = useState<any>(null);
-  const [activity, setActivity]   = useState<any[]>([]);
-  const [channels, setChannels]   = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [data, setData]             = useState<any>(null);
+  const [activity, setActivity]     = useState<any[]>([]);
+  const [channels, setChannels]     = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [headerText, setHeaderText] = useState("");
+  const [timeRange, setTimeRange]   = useState("30d");
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef                    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -111,6 +114,15 @@ export default function DashboardPage() {
     );
   }, []);
 
+  // Close notif panel on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifs(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const display = data ?? DEMO_DATA;
 
   if (loading) return (
@@ -119,10 +131,13 @@ export default function DashboardPage() {
     </div>
   );
 
-  const recentRevenue    = display.revenue_trend?.slice(-7) ?? [];
+  const allTrend = display.revenue_trend || [];
+  const trendPoints = timeRange === "7d" ? 7 : timeRange === "30d" ? Math.min(15, allTrend.length) : allTrend.length;
+  const filteredTrend = allTrend.slice(-trendPoints);
+  const recentRevenue    = filteredTrend.slice(-7);
   const avgDaily         = recentRevenue.reduce((s: number, d: any) => s + (d.revenue || 0), 0) / (recentRevenue.length || 1);
   const predictedMonthly = avgDaily * 30;
-  const revSparkData     = (display.revenue_trend || []).slice(-12).map((d: any) => d.revenue / 100000);
+  const revSparkData     = allTrend.slice(-12).map((d: any) => d.revenue / 100000);
 
   // Compute real change percentages from trend data
   const trend = display.revenue_trend || [];
@@ -144,13 +159,49 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            className="relative w-9 h-9 rounded-[8px] flex items-center justify-center"
-            style={{ border: "1px solid #E5E7EB", background: "#fff" }}
-          >
-            <Bell className="w-4 h-4" style={{ color: "#6B7280" }} />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ background: "#EF4444" }} />
-          </button>
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setShowNotifs(v => !v)}
+              className="relative w-9 h-9 rounded-[8px] flex items-center justify-center"
+              style={{ border: "1px solid #E5E7EB", background: showNotifs ? "#EFF6FF" : "#fff" }}
+            >
+              <Bell className="w-4 h-4" style={{ color: showNotifs ? "#2563EB" : "#6B7280" }} />
+              {activity.length > 0 && <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full" style={{ background: "#EF4444" }} />}
+            </button>
+            {showNotifs && (
+              <div className="absolute right-0 mt-2 w-80 bg-white rounded-[12px] z-50 overflow-hidden"
+                style={{ border: "1px solid #E5E7EB", boxShadow: "0 8px 30px rgba(0,0,0,0.12)", top: "100%" }}>
+                <div className="px-4 py-3" style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <p className="text-[13px] font-semibold" style={{ color: "#111827" }}>Notifications</p>
+                </div>
+                <div className="divide-y" style={{ borderColor: "#F9FAFB", maxHeight: 320, overflowY: "auto" }}>
+                  {(activity.length > 0 ? activity : [
+                    { type: "campaign_complete", text: "Festival Sale campaign completed", time: new Date().toISOString() },
+                    { type: "new_customer",     text: "128 new customers this week",       time: new Date(Date.now() - 3600000).toISOString() },
+                    { type: "conversion",       text: "Revenue goal reached for Q4",       time: new Date(Date.now() - 86400000).toISOString() },
+                  ]).slice(0, 6).map((a, i) => {
+                    const Icon = ACTIVITY_ICONS[a.type] || Zap;
+                    const colors = ACTIVITY_COLORS[a.type] || { color: "#6B7280", bg: "#F3F4F6" };
+                    return (
+                      <div key={i} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="w-7 h-7 rounded-[6px] flex items-center justify-center shrink-0 mt-0.5" style={{ background: colors.bg }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: colors.color }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px]" style={{ color: "#374151" }}>{a.text}</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{timeAgo(a.time)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="px-4 py-2.5 text-center" style={{ borderTop: "1px solid #F3F4F6" }}>
+                  <button className="text-[11px] font-semibold" style={{ color: "#2563EB" }}
+                    onClick={() => setShowNotifs(false)}>Mark all as read</button>
+                </div>
+              </div>
+            )}
+          </div>
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-white"
             style={{ background: "#2563EB" }}
@@ -222,11 +273,12 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {["7d", "30d", "90d"].map((r, i) => (
+                {["7d", "30d", "90d"].map((r) => (
                   <button
                     key={r}
+                    onClick={() => setTimeRange(r)}
                     className="px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-colors"
-                    style={i === 1
+                    style={r === timeRange
                       ? { background: "#EFF6FF", color: "#2563EB" }
                       : { color: "#9CA3AF", background: "transparent" }
                     }
@@ -237,7 +289,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={display.revenue_trend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <AreaChart data={filteredTrend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revAreaGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%"   stopColor="#2563EB" stopOpacity={0.12} />

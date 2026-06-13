@@ -1,12 +1,12 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { getCustomers } from "@/lib/api";
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer, exportCustomersCSV } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import {
   Search, Plus, Download, Eye, Sparkles, Megaphone,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Users, Upload, MapPin, Star,
+  Users, Upload, MapPin, Star, X, Pencil, Trash2,
 } from "lucide-react";
 import { CsvImportModal } from "@/components/CsvImportModal";
 
@@ -193,6 +193,13 @@ export default function CustomersPage() {
   const [page,        setPage]        = useState(1);
   const [filterKey,   setFilterKey]   = useState("all");
   const [showImport,  setShowImport]  = useState(false);
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [editCustomer, setEditCustomer] = useState<Customer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+  const [saving,      setSaving]      = useState(false);
+  const [deleting,    setDeleting]    = useState(false);
+  const [addForm,     setAddForm]     = useState({ name: "", email: "", phone: "", city: "", gender: "", age: "" });
+  const [editForm,    setEditForm]    = useState({ name: "", email: "", phone: "", city: "", gender: "", age: "" });
 
   function loadCustomers() {
     getCustomers()
@@ -251,6 +258,54 @@ export default function CustomersPage() {
     dormant: customers.filter(c => crmStatus(c) === "Dormant").length,
   }), [customers]);
 
+  function handleExport() {
+    exportCustomersCSV({ search: search || undefined })
+      .then((blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = "customers.csv"; a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => alert("Export failed. Please try again."));
+  }
+
+  function openAdd() { setAddForm({ name: "", email: "", phone: "", city: "", gender: "", age: "" }); setShowAdd(true); }
+  function openEdit(c: Customer) {
+    setEditForm({
+      name: c.name || "", email: c.email || "", phone: c.phone || "",
+      city: c.city || c.location || "", gender: "", age: "",
+    });
+    setEditCustomer(c);
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    try {
+      await createCustomer({ ...addForm, age: addForm.age ? parseInt(addForm.age) : undefined });
+      setShowAdd(false); setLoading(true); loadCustomers();
+    } catch { alert("Failed to add customer."); } finally { setSaving(false); }
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault(); if (!editCustomer) return; setSaving(true);
+    try {
+      await updateCustomer(editCustomer.id, { ...editForm, age: editForm.age ? parseInt(editForm.age) : undefined });
+      setEditCustomer(null); setLoading(true); loadCustomers();
+    } catch { alert("Failed to update customer."); } finally { setSaving(false); }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return; setDeleting(true);
+    try {
+      await deleteCustomer(deleteTarget.id);
+      setDeleteTarget(null); setLoading(true); loadCustomers();
+    } catch { alert("Failed to delete customer."); } finally { setDeleting(false); }
+  }
+
+  function handleBulkCampaign() {
+    const ids = Array.from(checked).join(",");
+    router.push(`/campaigns?customer_ids=${ids}`);
+  }
+
   function toggleSort(key: string) {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("desc"); }
@@ -289,7 +344,7 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
             style={{ border: "1px solid #E5E7EB", background: "#fff", color: "#374151" }}>
             <Download className="w-3.5 h-3.5" />Export
           </button>
@@ -298,7 +353,7 @@ export default function CustomersPage() {
             style={{ border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#2563EB" }}>
             <Upload className="w-3.5 h-3.5" />Import CSV
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[13px] font-medium text-white"
+          <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[13px] font-medium text-white"
             style={{ background: "#2563EB" }}>
             <Plus className="w-4 h-4" />Add Customer
           </button>
@@ -333,7 +388,7 @@ export default function CustomersPage() {
                     style={{ background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}>
                     {checked.size} selected
                   </span>
-                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
+                  <button onClick={handleBulkCampaign} className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
                     style={{ border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#7C3AED" }}>
                     <Megaphone className="w-3.5 h-3.5" />Launch Campaign
                   </button>
@@ -542,7 +597,7 @@ export default function CustomersPage() {
                       </td>
 
                       {/* Hover actions */}
-                      <td className="py-[18px] pr-5" style={{ width: 210 }}>
+                      <td className="py-[18px] pr-5" style={{ width: 230 }}>
                         <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-150">
                           <button
                             onClick={() => router.push(`/customers/${c.id}`)}
@@ -553,19 +608,28 @@ export default function CustomersPage() {
                             <Eye className="w-3 h-3" />View
                           </button>
                           <button
-                            onClick={() => router.push(`/customers/${c.id}`)}
+                            onClick={() => openEdit(c)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] text-[11px] font-semibold transition-colors"
                             style={{ background: "#EFF6FF", color: "#2563EB", border: "1px solid #BFDBFE" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#DBEAFE"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#EFF6FF"; }}>
-                            <Sparkles className="w-3 h-3" />AI
+                            <Pencil className="w-3 h-3" />Edit
                           </button>
                           <button
+                            onClick={() => router.push(`/campaigns?customer_ids=${c.id}`)}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-[7px] text-[11px] font-semibold transition-colors"
                             style={{ background: "#F5F3FF", color: "#7C3AED", border: "1px solid #DDD6FE" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#EDE9FE"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#F5F3FF"; }}>
                             <Megaphone className="w-3 h-3" />Campaign
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(c)}
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-[7px] text-[11px] font-semibold transition-colors"
+                            style={{ background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#FEE2E2"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#FEF2F2"; }}>
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       </td>
@@ -613,6 +677,123 @@ export default function CustomersPage() {
         type="customers"
         onSuccess={() => { setLoading(true); loadCustomers(); }}
       />
+
+      {/* ── Add Customer Modal ── */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="bg-white rounded-[16px] w-full max-w-md shadow-2xl" style={{ border: "1px solid #E5E7EB" }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <h2 className="text-[15px] font-semibold" style={{ color: "#111827" }}>Add Customer</h2>
+              <button onClick={() => setShowAdd(false)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100"><X className="w-4 h-4" style={{ color: "#6B7280" }} /></button>
+            </div>
+            <form onSubmit={handleAdd} className="px-6 py-4 grid grid-cols-2 gap-3">
+              {[
+                { label: "Full Name *", key: "name", type: "text", required: true },
+                { label: "Email *", key: "email", type: "email", required: true },
+                { label: "Phone", key: "phone", type: "tel", required: false },
+                { label: "City", key: "city", type: "text", required: false },
+                { label: "Age", key: "age", type: "number", required: false },
+              ].map(f => (
+                <div key={f.key} className={f.key === "name" || f.key === "email" ? "col-span-2" : ""}>
+                  <label className="block text-[11px] font-medium mb-1" style={{ color: "#6B7280" }}>{f.label}</label>
+                  <input required={f.required} type={f.type} value={(addForm as any)[f.key]}
+                    onChange={e => setAddForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-[8px] text-[13px]"
+                    style={{ border: "1px solid #E5E7EB", outline: "none", color: "#111827" }} />
+                </div>
+              ))}
+              <div className="col-span-2">
+                <label className="block text-[11px] font-medium mb-1" style={{ color: "#6B7280" }}>Gender</label>
+                <select value={addForm.gender} onChange={e => setAddForm(prev => ({ ...prev, gender: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-[8px] text-[13px]" style={{ border: "1px solid #E5E7EB", color: "#111827" }}>
+                  <option value="">Select…</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAdd(false)}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium" style={{ border: "1px solid #E5E7EB", color: "#374151" }}>Cancel</button>
+                <button type="submit" disabled={saving}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white" style={{ background: saving ? "#93C5FD" : "#2563EB" }}>
+                  {saving ? "Saving…" : "Add Customer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Customer Modal ── */}
+      {editCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="bg-white rounded-[16px] w-full max-w-md shadow-2xl" style={{ border: "1px solid #E5E7EB" }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <h2 className="text-[15px] font-semibold" style={{ color: "#111827" }}>Edit Customer</h2>
+              <button onClick={() => setEditCustomer(null)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100"><X className="w-4 h-4" style={{ color: "#6B7280" }} /></button>
+            </div>
+            <form onSubmit={handleEdit} className="px-6 py-4 grid grid-cols-2 gap-3">
+              {[
+                { label: "Full Name *", key: "name", type: "text", required: true },
+                { label: "Email *", key: "email", type: "email", required: true },
+                { label: "Phone", key: "phone", type: "tel", required: false },
+                { label: "City", key: "city", type: "text", required: false },
+                { label: "Age", key: "age", type: "number", required: false },
+              ].map(f => (
+                <div key={f.key} className={f.key === "name" || f.key === "email" ? "col-span-2" : ""}>
+                  <label className="block text-[11px] font-medium mb-1" style={{ color: "#6B7280" }}>{f.label}</label>
+                  <input required={f.required} type={f.type} value={(editForm as any)[f.key]}
+                    onChange={e => setEditForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-[8px] text-[13px]"
+                    style={{ border: "1px solid #E5E7EB", outline: "none", color: "#111827" }} />
+                </div>
+              ))}
+              <div className="col-span-2">
+                <label className="block text-[11px] font-medium mb-1" style={{ color: "#6B7280" }}>Gender</label>
+                <select value={editForm.gender} onChange={e => setEditForm(prev => ({ ...prev, gender: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-[8px] text-[13px]" style={{ border: "1px solid #E5E7EB", color: "#111827" }}>
+                  <option value="">Select…</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="col-span-2 flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setEditCustomer(null)}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium" style={{ border: "1px solid #E5E7EB", color: "#374151" }}>Cancel</button>
+                <button type="submit" disabled={saving}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white" style={{ background: saving ? "#93C5FD" : "#2563EB" }}>
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="bg-white rounded-[16px] w-full max-w-sm shadow-2xl p-6" style={{ border: "1px solid #E5E7EB" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mb-4" style={{ background: "#FEF2F2" }}>
+              <Trash2 className="w-5 h-5" style={{ color: "#DC2626" }} />
+            </div>
+            <h2 className="text-[15px] font-semibold mb-1" style={{ color: "#111827" }}>Delete Customer</h2>
+            <p className="text-[13px] mb-5" style={{ color: "#6B7280" }}>
+              Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-medium" style={{ border: "1px solid #E5E7EB", color: "#374151" }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white" style={{ background: deleting ? "#FCA5A5" : "#DC2626" }}>
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

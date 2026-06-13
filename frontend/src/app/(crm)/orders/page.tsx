@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import { getOrders } from "@/lib/api";
+import { getOrders, exportOrdersCSV } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   Search, Download, Filter, ChevronUp, ChevronDown,
-  ChevronLeft, ChevronRight, ShoppingBag, TrendingUp, Upload
+  ChevronLeft, ChevronRight, ShoppingBag, TrendingUp, Upload, X, Plus
 } from "lucide-react";
 import { CsvImportModal } from "@/components/CsvImportModal";
 
@@ -82,6 +82,9 @@ export default function OrdersPage() {
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [showImport, setShowImport] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [addForm, setAddForm] = useState({ customer_id: "", amount: "", category: "", purchase_date: "" });
+  const [saving, setSaving] = useState(false);
 
   function loadOrders() {
     getOrders()
@@ -107,6 +110,31 @@ export default function OrdersPage() {
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged      = filtered.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  function handleExport() {
+    exportOrdersCSV()
+      .then((blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url; a.download = "orders.csv"; a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => alert("Export failed."));
+  }
+
+  async function handleAddOrder(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true);
+    try {
+      const { api } = await import("@/lib/api");
+      await api.post("/api/orders", {
+        customer_id: addForm.customer_id,
+        amount: parseFloat(addForm.amount),
+        category: addForm.category || null,
+        purchase_date: addForm.purchase_date,
+      });
+      setShowAdd(false); setAddForm({ customer_id: "", amount: "", category: "", purchase_date: "" });
+      setLoading(true); loadOrders();
+    } catch { alert("Failed to add order."); } finally { setSaving(false); }
+  }
 
   function toggleSort(k: string) {
     if (sortKey === k) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -148,9 +176,13 @@ export default function OrdersPage() {
             style={{ border: "1px solid #BFDBFE", background: "#EFF6FF", color: "#2563EB" }}>
             <Upload className="w-3.5 h-3.5" />Import CSV
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium"
             style={{ border: "1px solid #E5E7EB", background: "#fff", color: "#374151" }}>
             <Download className="w-3.5 h-3.5" />Export
+          </button>
+          <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[13px] font-medium text-white"
+            style={{ background: "#2563EB" }}>
+            <Plus className="w-4 h-4" />Add Order
           </button>
         </div>
       </div>
@@ -320,6 +352,41 @@ export default function OrdersPage() {
         type="orders"
         onSuccess={() => { setLoading(true); loadOrders(); }}
       />
+
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)" }}>
+          <div className="bg-white rounded-[16px] w-full max-w-sm shadow-2xl" style={{ border: "1px solid #E5E7EB" }}>
+            <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <h2 className="text-[15px] font-semibold" style={{ color: "#111827" }}>Add Order</h2>
+              <button onClick={() => setShowAdd(false)} className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100"><X className="w-4 h-4" style={{ color: "#6B7280" }} /></button>
+            </div>
+            <form onSubmit={handleAddOrder} className="px-6 py-4 flex flex-col gap-3">
+              {[
+                { label: "Customer ID *", key: "customer_id", type: "text", required: true, placeholder: "e.g. cust_abc123" },
+                { label: "Amount (₹) *", key: "amount", type: "number", required: true, placeholder: "e.g. 2500" },
+                { label: "Category", key: "category", type: "text", required: false, placeholder: "e.g. Electronics" },
+                { label: "Purchase Date *", key: "purchase_date", type: "date", required: true, placeholder: "" },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="block text-[11px] font-medium mb-1" style={{ color: "#6B7280" }}>{f.label}</label>
+                  <input required={f.required} type={f.type} placeholder={f.placeholder} value={(addForm as any)[f.key]}
+                    onChange={e => setAddForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-[8px] text-[13px]"
+                    style={{ border: "1px solid #E5E7EB", outline: "none", color: "#111827" }} />
+                </div>
+              ))}
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAdd(false)}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium" style={{ border: "1px solid #E5E7EB", color: "#374151" }}>Cancel</button>
+                <button type="submit" disabled={saving}
+                  className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white" style={{ background: saving ? "#93C5FD" : "#2563EB" }}>
+                  {saving ? "Saving…" : "Add Order"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

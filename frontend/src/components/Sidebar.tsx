@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, ShoppingBag, Target, Megaphone,
   BarChart3, Sparkles, Crosshair, Activity,
-  ChevronLeft, ChevronRight, Zap
+  ChevronLeft, ChevronRight, Zap, Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -125,6 +125,17 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto scrollbar-none space-y-0.5">
         {/* Platform section */}
+        {/* Home link */}
+        <NavItem
+          href="/"
+          label="Home"
+          icon={Home}
+          active={false}
+          collapsed={collapsed}
+        />
+
+        <div className="my-2" style={{ borderTop: "1px solid #F3F4F6" }} />
+
         {!collapsed && (
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] px-2 pb-2 pt-1" style={{ color: "#9CA3AF" }}>
             Platform
