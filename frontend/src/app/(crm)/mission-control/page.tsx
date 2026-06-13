@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Crosshair, Sparkles, Users, Megaphone, Target, BarChart3,
+  Crosshair, Sparkles, Bot, Users, Megaphone, Target, BarChart3,
   ArrowRight, TrendingUp, Zap, Bell, Search,
   ShoppingBag, AlertCircle, CheckCircle, Clock
 } from "lucide-react";
@@ -35,7 +35,7 @@ const QUICK_ACTIONS = [
     tag: "Live",
   },
   {
-    icon: Sparkles,
+    icon: Bot,
     label: "Ask AI Copilot",
     desc: "Describe any CRM task in plain English",
     href: "/ai-copilot",
@@ -149,7 +149,7 @@ export default function MissionControlPage() {
               type="submit"
               className="btn-primary px-3.5 py-1.5 rounded-[8px] text-[13px] flex items-center gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5" /> Ask AI
+              <Bot className="w-3.5 h-3.5" /> Ask AI
             </button>
           </div>
 
@@ -169,7 +169,7 @@ export default function MissionControlPage() {
                   onClick={() => useSuggestion(s)}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-gray-50"
                 >
-                  <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: "#635BFF" }} />
+                  <Bot className="w-3.5 h-3.5 shrink-0" style={{ color: "#635BFF" }} />
                   <span className="text-[13px]" style={{ color: "#374151" }}>{s}</span>
                   <ArrowRight className="w-3.5 h-3.5 ml-auto shrink-0" style={{ color: "#9CA3AF" }} />
                 </button>

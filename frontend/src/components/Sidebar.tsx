@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, ShoppingBag, Target, Megaphone,
-  BarChart3, Sparkles, Crosshair, Activity,
+  BarChart3, Bot, Crosshair, Activity,
   ChevronLeft, ChevronRight, Zap, Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ const NAV_PLATFORM = [
 ];
 
 const NAV_AI = [
-  { href: "/ai-copilot",      label: "AI Copilot",     icon: Sparkles,  dot: true  },
+  { href: "/ai-copilot",      label: "AI Copilot",     icon: Bot,       dot: true  },
   { href: "/mission-control", label: "Mission Control", icon: Crosshair, dot: false },
   { href: "/predictions",     label: "Predictions",     icon: Activity,  dot: false },
 ];

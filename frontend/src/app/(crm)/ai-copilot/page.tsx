@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { chatWithCopilot } from "@/lib/api";
 import {
-  Sparkles, Send, RefreshCw, User, Zap, CheckCircle, Play,
+  Sparkles, Bot, Send, RefreshCw, User, Zap, CheckCircle, Play,
   Target, Megaphone, BarChart3, TrendingDown, ArrowRight,
   Plus, MessageSquare, Trash2, PanelLeftClose, PanelLeftOpen
 } from "lucide-react";
@@ -348,7 +348,7 @@ function AICopilotInner() {
           className="w-8 h-8 rounded-[10px] flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, rgba(99,91,255,0.15), rgba(139,92,246,0.15))" }}
         >
-          <Sparkles className="w-4 h-4" style={{ color: "#635BFF" }} />
+          <Bot className="w-4 h-4" style={{ color: "#635BFF" }} />
         </div>
         <div>
           <span className="text-[14px] font-semibold" style={{ color: "var(--t1)" }}>AI Copilot</span>
@@ -443,7 +443,7 @@ function AICopilotInner() {
               >
                 {m.role === "user"
                   ? <User className="w-4 h-4 text-white" />
-                  : <Sparkles className="w-4 h-4" style={{ color: "#635BFF" }} />
+                  : <Bot className="w-4 h-4" style={{ color: "#635BFF" }} />
                 }
               </div>
 
@@ -523,7 +523,7 @@ function AICopilotInner() {
               className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
               style={{ background: "linear-gradient(135deg, rgba(99,91,255,0.12), rgba(139,92,246,0.12))", border: "1px solid rgba(99,91,255,0.12)" }}
             >
-              <Sparkles className="w-4 h-4" style={{ color: "#635BFF" }} />
+              <Bot className="w-4 h-4" style={{ color: "#635BFF" }} />
             </div>
             <div
               className="px-4 py-3 rounded-[16px] flex items-center gap-2.5"
@@ -549,7 +549,7 @@ function AICopilotInner() {
           onFocus={(e) => (e.currentTarget.style.borderColor = "#635BFF")}
           onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border2)")}
         >
-          <Sparkles className="w-4 h-4 shrink-0" style={{ color: "#635BFF" }} />
+          <Bot className="w-4 h-4 shrink-0" style={{ color: "#635BFF" }} />
           <input
             ref={inputRef}
             value={input}
