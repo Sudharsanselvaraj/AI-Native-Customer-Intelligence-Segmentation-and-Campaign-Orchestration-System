@@ -121,7 +121,7 @@ export default function MissionControlPage() {
           style={{ background: "#F0FDF4", color: "#16A34A" }}
         >
           <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-green-500" />
-          Claude AI · Online
+          Aster AI · Online
         </div>
       </div>
 

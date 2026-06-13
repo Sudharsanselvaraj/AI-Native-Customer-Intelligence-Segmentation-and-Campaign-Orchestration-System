@@ -181,8 +181,9 @@ function AICopilotInner() {
   const [loading, setLoading]       = useState(false);
   const [sessionId, setSessionId]   = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const endRef  = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const endRef       = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLInputElement>(null);
+  const didAutoSend  = useRef(false);
 
   // Load persisted sessions on mount
   useEffect(() => {
@@ -196,7 +197,10 @@ function AICopilotInner() {
 
   useEffect(() => {
     const q = params.get("q");
-    if (q) send(q);
+    if (q && !didAutoSend.current) {
+      didAutoSend.current = true;
+      send(q);
+    }
   }, []);
 
   // Persist whenever messages change (and there are messages)
@@ -348,7 +352,7 @@ function AICopilotInner() {
         </div>
         <div>
           <span className="text-[14px] font-semibold" style={{ color: "var(--t1)" }}>AI Copilot</span>
-          <span className="text-[12px] ml-2" style={{ color: "var(--t3)" }}>Powered by Claude</span>
+          <span className="text-[12px] ml-2" style={{ color: "var(--t3)" }}>Powered by Groq</span>
         </div>
         <button
           onClick={startNew}

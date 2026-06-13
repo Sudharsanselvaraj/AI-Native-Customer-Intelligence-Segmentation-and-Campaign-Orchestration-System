@@ -192,7 +192,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
               className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse"
               style={{ background: "#22C55E" }}
             />
-            <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Claude AI · Connected</span>
+            <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Aster AI · Connected</span>
           </div>
         )}
         <button
