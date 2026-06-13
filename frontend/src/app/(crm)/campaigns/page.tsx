@@ -139,7 +139,7 @@ export default function CampaignsPage() {
         .then((d: any) => setCampaigns(Array.isArray(d) ? d : d.campaigns || []))
         .catch(() => setCampaigns(DEMO_CAMPAIGNS)),
       getSegments()
-        .then((d: any) => setSegments(Array.isArray(d) ? d : d.segments || []))
+        .then((d: any) => setSegments(Array.isArray(d) ? d : d.items || d.segments || []))
         .catch(() => setSegments(DEMO_SEGS)),
     ]).finally(() => setLoading(false));
   }, []);

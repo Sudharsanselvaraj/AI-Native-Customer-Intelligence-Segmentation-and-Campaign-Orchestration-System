@@ -121,6 +121,7 @@ class SegmentService:
             row = db.execute(text(f"SELECT COUNT(*) FROM customers WHERE {safe_sql}")).fetchone()
             return row[0] if row else 0
         except Exception:
+            db.rollback()
             return 0
 
     def _estimate_revenue(self, db: Session, safe_sql: str) -> float:
@@ -130,6 +131,7 @@ class SegmentService:
             ).fetchone()
             return float(row[0]) if row else 0.0
         except Exception:
+            db.rollback()
             return 0.0
 
     def _make_safe(self, sql: str) -> str:
