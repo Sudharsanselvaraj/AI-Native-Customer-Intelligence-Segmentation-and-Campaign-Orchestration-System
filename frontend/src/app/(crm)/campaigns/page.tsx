@@ -159,7 +159,7 @@ export default function CampaignsPage() {
     if (!prompt.trim()) return;
     setGenerating(true);
     try {
-      const res: any = await generateCampaign({ prompt, segment_id: selSeg || undefined });
+      const res: any = await generateCampaign({ prompt, segment_id: selSeg || segments[0]?.id || undefined });
       setGenerated(res);
     } catch (e) { console.error(e); }
     finally { setGenerating(false); }
@@ -169,11 +169,20 @@ export default function CampaignsPage() {
     if (!generated) return;
     setGenerating(true);
     try {
-      await createCampaign({ ...generated, segment_id: selSeg || undefined });
+      // segment_id is required by backend — fall back to first available segment
+      const segId = selSeg || segments[0]?.id;
+      if (!segId) {
+        alert("No segments available. Please create a segment first.");
+        setGenerating(false);
+        return;
+      }
+      await createCampaign({ ...generated, segment_id: segId });
       setShowModal(false); setGenerated(null); setPrompt("");
       const d: any = await getCampaigns();
       setCampaigns(Array.isArray(d) ? d : d.campaigns || []);
-    } catch (e) { console.error(e); }
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || "Failed to create campaign.");
+    }
     finally { setGenerating(false); }
   }
 
