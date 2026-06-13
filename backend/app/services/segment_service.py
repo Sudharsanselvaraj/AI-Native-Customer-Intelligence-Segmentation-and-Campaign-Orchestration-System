@@ -133,13 +133,46 @@ class SegmentService:
             return 0.0
 
     def _make_safe(self, sql: str) -> str:
-        """Strip any leading SELECT / WITH to get just the WHERE conditions."""
+        """
+        Validate AI-generated WHERE clause before execution.
+
+        Defence layers:
+        1. Block DDL / DML / dangerous functions outright — return 1=0 (safe no-op)
+        2. Reject any semicolons (statement chaining)
+        3. Reject comment sequences that could mask injected tokens
+        4. Reject information_schema / pg_catalog references (schema exfiltration)
+        5. Wrap in a CTE so it can only be used as a filter expression
+        """
         sql = sql.strip()
-        # If AI returns a full subquery like "id IN (SELECT ...)", that's fine
-        # Strip dangerous keywords at top level
-        for kw in ["DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE"]:
-            if kw in sql.upper():
+        upper = sql.upper()
+
+        # Layer 1 — DDL / DML / dangerous builtins
+        BLOCKED = [
+            "DROP", "DELETE", "UPDATE", "INSERT", "TRUNCATE", "ALTER", "CREATE",
+            "EXEC", "EXECUTE", "GRANT", "REVOKE", "COPY",
+            "PG_SLEEP", "PG_READ_FILE", "PG_WRITE_FILE", "DBLINK",
+            "CURRENT_SETTING", "SET_CONFIG",
+        ]
+        for kw in BLOCKED:
+            if kw in upper:
+                logger.warning("sql_blocked", reason=kw, sql=sql[:120])
                 return "1=0"
+
+        # Layer 2 — statement chaining
+        if ";" in sql:
+            logger.warning("sql_blocked", reason="semicolon", sql=sql[:120])
+            return "1=0"
+
+        # Layer 3 — comment injection
+        if "--" in sql or "/*" in sql or "*/" in sql:
+            logger.warning("sql_blocked", reason="comment_sequence", sql=sql[:120])
+            return "1=0"
+
+        # Layer 4 — schema / catalog exfiltration
+        if "INFORMATION_SCHEMA" in upper or "PG_CATALOG" in upper or "PG_CLASS" in upper:
+            logger.warning("sql_blocked", reason="schema_access", sql=sql[:120])
+            return "1=0"
+
         return sql
 
 

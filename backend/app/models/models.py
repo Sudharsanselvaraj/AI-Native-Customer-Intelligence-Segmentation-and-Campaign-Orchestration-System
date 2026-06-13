@@ -34,6 +34,10 @@ class CommunicationStatusEnum(str, enum.Enum):
     PENDING = "pending"
     SENT = "sent"
     DELIVERED = "delivered"
+    OPENED = "opened"
+    READ = "read"
+    CLICKED = "clicked"
+    CONVERTED = "converted"
     FAILED = "failed"
 
 

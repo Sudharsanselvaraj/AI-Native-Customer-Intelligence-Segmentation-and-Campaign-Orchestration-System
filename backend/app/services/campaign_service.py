@@ -77,33 +77,48 @@ class CampaignService:
         return camp
 
     def get_audience_ids(self, db: Session, segment_id: str) -> List[str]:
-        from app.models.models import Segment, Customer
+        from app.models.models import Segment
+        from app.services.segment_service import segment_service
         seg = db.query(Segment).filter(Segment.id == segment_id).first()
         if not seg:
             return []
         sql = (seg.query_definition or {}).get("generated_sql")
         if not sql:
+            logger.warning(
+                "audience_fallback_all_customers",
+                segment_id=segment_id,
+                segment_name=seg.name,
+                note="No generated_sql on segment — targeting all customers up to 10000",
+            )
             rows = db.execute(text("SELECT id FROM customers LIMIT 10000")).fetchall()
         else:
-            rows = db.execute(text(f"SELECT id FROM customers WHERE {sql}")).fetchall()
+            safe_sql = segment_service._make_safe(sql)
+            rows = db.execute(text(f"SELECT id FROM customers WHERE {safe_sql}")).fetchall()
         return [r[0] for r in rows]
 
     def send_communications(self, db: Session, campaign: Campaign) -> int:
-        audience_ids = self.get_audience_ids(db, campaign.segment_id)
         from app.models.models import Customer
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        audience_ids = self.get_audience_ids(db, campaign.segment_id)
         customers = db.query(Customer).filter(Customer.id.in_(audience_ids)).all()
         customer_map = {c.id: c for c in customers}
 
-        sent = 0
+        # Build Communication records in bulk, skip duplicates
+        comms_to_send: list[tuple[Communication, str]] = []  # (comm, msg)
+        existing_keys = {
+            row[0] for row in db.execute(
+                text("SELECT idempotency_key FROM communications WHERE campaign_id = :cid"),
+                {"cid": campaign.id},
+            ).fetchall()
+        }
         for cid in audience_ids:
             customer = customer_map.get(cid)
             if not customer:
                 continue
             ikey = f"{campaign.id}:{cid}"
-            existing = db.query(Communication).filter(Communication.idempotency_key == ikey).first()
-            if existing:
+            if ikey in existing_keys:
                 continue
-
             msg = campaign.message_template.replace("{customer_name}", customer.name)
             comm = Communication(
                 campaign_id=campaign.id,
@@ -114,30 +129,47 @@ class CampaignService:
                 status=CommunicationStatusEnum.PENDING,
             )
             db.add(comm)
-            db.flush()
+            comms_to_send.append((comm, customer))
 
+        db.flush()  # assigns IDs without committing
+
+        callback_url = f"{settings.CRM_RECEIPT_URL}/api/receipts/webhook"
+        channel_url = f"{settings.CHANNEL_SIMULATOR_URL}/send"
+
+        def _fire(comm: Communication, customer: Customer) -> bool:
+            payload = {
+                "communication_id": comm.id,
+                "recipient_id": customer.id,
+                "recipient_phone": customer.phone or f"+91{customer.id[:10]}",
+                "recipient_email": customer.email,
+                "message": comm.message,
+                "channel": campaign.channel.value,
+                "callback_url": callback_url,
+            }
             try:
                 with httpx.Client(timeout=5.0) as client:
-                    resp = client.post(
-                        f"{settings.CHANNEL_SIMULATOR_URL}/send",
-                        json={
-                            "communication_id": comm.id,
-                            "recipient_id": cid,
-                            "recipient_phone": customer.phone or f"+91{cid[:10]}",
-                            "recipient_email": customer.email,
-                            "message": msg,
-                            "channel": campaign.channel.value,
-                            "callback_url": f"{settings.CRM_RECEIPT_URL}/api/receipts/webhook",
-                        }
-                    )
-                comm.status = CommunicationStatusEnum.SENT
-                comm.sent_at = datetime.now(timezone.utc)
-                sent += 1
+                    client.post(channel_url, json=payload).raise_for_status()
+                return True
             except Exception as e:
                 logger.error("send_failed", comm_id=comm.id, error=str(e))
-                comm.status = CommunicationStatusEnum.FAILED
+                return False
+
+        sent = 0
+        now = datetime.now(timezone.utc)
+        # Concurrently fire to channel simulator — 20 workers caps parallelism
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            futures = {pool.submit(_fire, comm, cust): comm for comm, cust in comms_to_send}
+            for future in as_completed(futures):
+                comm = futures[future]
+                if future.result():
+                    comm.status = CommunicationStatusEnum.SENT
+                    comm.sent_at = now
+                    sent += 1
+                else:
+                    comm.status = CommunicationStatusEnum.FAILED
 
         db.commit()
+        logger.info("campaign_sent", campaign_id=campaign.id, sent=sent, total=len(comms_to_send))
         return sent
 
     def mark_completed(self, db: Session, campaign_id: str):

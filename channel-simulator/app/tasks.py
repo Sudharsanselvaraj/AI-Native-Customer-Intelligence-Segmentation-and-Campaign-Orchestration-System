@@ -32,7 +32,8 @@ CHANNEL_PROFILES = {
 DEFAULT_PROFILE = {"delivered": 0.88, "opened": 0.40, "read": 0.32, "clicked": 0.12, "converted": 0.04}
 
 
-def _callback(callback_url: str, comm_id: str, event_type: str, metadata: dict = None):
+def _callback(callback_url: str, comm_id: str, event_type: str, metadata: dict = None, _attempt: int = 0):
+    """POST a delivery event to the CRM webhook with exponential-backoff retry (3 attempts)."""
     payload = {
         "communication_id": comm_id,
         "event_type": event_type,
@@ -44,7 +45,10 @@ def _callback(callback_url: str, comm_id: str, event_type: str, metadata: dict =
             resp = client.post(callback_url, json=payload)
             resp.raise_for_status()
     except Exception as e:
-        logger.error("callback_failed", comm_id=comm_id, event=event_type, error=str(e))
+        logger.error("callback_failed", comm_id=comm_id, event=event_type, attempt=_attempt, error=str(e))
+        if _attempt < 3:
+            time.sleep(2 ** _attempt)  # 1s, 2s, 4s
+            _callback(callback_url, comm_id, event_type, metadata, _attempt + 1)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=5)

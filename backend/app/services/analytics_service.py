@@ -100,47 +100,54 @@ class AnalyticsService:
         """Recompute and persist analytics for a single campaign."""
         stats = db.execute(text("""
             SELECT
-                SUM(CASE WHEN e.event_type = 'SENT' THEN 1 ELSE 0 END) AS sent,
-                SUM(CASE WHEN e.event_type = 'DELIVERED' THEN 1 ELSE 0 END) AS delivered,
-                SUM(CASE WHEN e.event_type = 'FAILED' THEN 1 ELSE 0 END) AS failed,
-                SUM(CASE WHEN e.event_type = 'OPENED' THEN 1 ELSE 0 END) AS opened,
-                SUM(CASE WHEN e.event_type = 'READ' THEN 1 ELSE 0 END) AS read_count,
-                SUM(CASE WHEN e.event_type = 'CLICKED' THEN 1 ELSE 0 END) AS clicked,
-                SUM(CASE WHEN e.event_type = 'CONVERTED' THEN 1 ELSE 0 END) AS converted
+                SUM(CASE WHEN e.event_type = 'SENT'      THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'DELIVERED' THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'FAILED'    THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'OPENED'    THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'READ'      THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'CLICKED'   THEN 1 ELSE 0 END),
+                SUM(CASE WHEN e.event_type = 'CONVERTED' THEN 1 ELSE 0 END),
+                COALESCE(SUM(CASE WHEN e.event_type = 'CONVERTED'
+                                  THEN (e.event_metadata->>'order_value')::float
+                                  ELSE 0 END), 0.0) AS revenue
             FROM communication_events e
             JOIN communications c ON c.id = e.communication_id
             WHERE c.campaign_id = :cid
         """), {"cid": campaign_id}).fetchone()
 
-        sent = int(stats[0] or 0)
+        sent      = int(stats[0] or 0)
         delivered = int(stats[1] or 0)
-        failed = int(stats[2] or 0)
-        opened = int(stats[3] or 0)
-        read_c = int(stats[4] or 0)
-        clicked = int(stats[5] or 0)
+        failed    = int(stats[2] or 0)
+        opened    = int(stats[3] or 0)
+        read_c    = int(stats[4] or 0)
+        clicked   = int(stats[5] or 0)
         converted = int(stats[6] or 0)
+        revenue   = float(stats[7] or 0.0)
 
-        delivery_rate = delivered / sent if sent else 0.0
-        open_rate = opened / delivered if delivered else 0.0
-        click_rate = clicked / delivered if delivered else 0.0
-        conversion_rate = converted / clicked if clicked else 0.0
+        # Rates relative to sent (industry-standard denominator)
+        delivery_rate   = delivered / sent if sent else 0.0
+        open_rate       = opened    / sent if sent else 0.0
+        click_rate      = clicked   / sent if sent else 0.0
+        # conversion_rate = conversions / sent (not /clicked) — standard CRM metric
+        conversion_rate = converted / sent if sent else 0.0
 
         ca = db.query(CampaignAnalytics).filter(CampaignAnalytics.campaign_id == campaign_id).first()
         if not ca:
             ca = CampaignAnalytics(campaign_id=campaign_id)
             db.add(ca)
 
-        ca.total_sent = sent
-        ca.total_delivered = delivered
-        ca.total_failed = failed
-        ca.total_opened = opened
-        ca.total_read = read_c
-        ca.total_clicked = clicked
-        ca.total_converted = converted
-        ca.delivery_rate = delivery_rate
-        ca.open_rate = open_rate
-        ca.click_rate = click_rate
-        ca.conversion_rate = conversion_rate
+        ca.total_sent       = sent
+        ca.total_delivered  = delivered
+        ca.total_failed     = failed
+        ca.total_opened     = opened
+        ca.total_read       = read_c
+        ca.total_clicked    = clicked
+        ca.total_converted  = converted
+        ca.total_revenue    = revenue
+        ca.delivery_rate    = delivery_rate
+        ca.open_rate        = open_rate
+        ca.click_rate       = click_rate
+        ca.conversion_rate  = conversion_rate
         db.commit()
 
 
