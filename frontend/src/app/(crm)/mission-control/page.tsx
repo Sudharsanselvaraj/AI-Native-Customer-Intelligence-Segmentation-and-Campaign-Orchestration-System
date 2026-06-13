@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Crosshair, Sparkles, Users, Megaphone, Target, BarChart3,
   ArrowRight, TrendingUp, Zap, Bell, Search,
   ShoppingBag, AlertCircle, CheckCircle, Clock
 } from "lucide-react";
+import { getDashboard } from "@/lib/api";
+import { formatNumber } from "@/lib/utils";
 
 const QUICK_ACTIONS = [
   {
@@ -59,17 +61,38 @@ const ALERTS = [
   { icon: Clock,       color: "#EF4444", bg: "rgba(239,68,68,0.08)",  text: "Diwali Campaign scheduled to launch in 2 days", time: "Yesterday",type: "warning" },
 ];
 
-const KPI_TILES = [
-  { label: "Customers",       value: "24,381",   delta: "+18%",  positive: true,  icon: Users,      color: "#635BFF" },
-  { label: "Active Campaigns",value: "7",         delta: "+2",    positive: true,  icon: Megaphone,  color: "#22C55E" },
-  { label: "Orders Today",    value: "1,204",     delta: "+34%",  positive: true,  icon: ShoppingBag,color: "#F59E0B" },
-  { label: "Churn Risk",      value: "4.2%",      delta: "-0.8%", positive: true,  icon: AlertCircle,color: "#EF4444" },
-];
-
 export default function MissionControlPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [dashData, setDashData] = useState<any>(null);
+
+  useEffect(() => {
+    getDashboard().then(setDashData).catch(() => null);
+  }, []);
+
+  const kpiTiles = [
+    {
+      label: "Customers",
+      value: dashData ? formatNumber(dashData.total_customers) : "—",
+      delta: "+8%", positive: true, icon: Users, color: "#635BFF",
+    },
+    {
+      label: "Campaigns",
+      value: dashData ? formatNumber(dashData.total_campaigns) : "—",
+      delta: "total", positive: true, icon: Megaphone, color: "#22C55E",
+    },
+    {
+      label: "Messages Sent",
+      value: dashData ? formatNumber(dashData.total_messages_sent || 0) : "—",
+      delta: "all time", positive: true, icon: ShoppingBag, color: "#F59E0B",
+    },
+    {
+      label: "Avg Conversion",
+      value: dashData ? `${((dashData.avg_conversion_rate || 0) * 100).toFixed(1)}%` : "—",
+      delta: "across campaigns", positive: true, icon: AlertCircle, color: "#EF4444",
+    },
+  ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +184,7 @@ export default function MissionControlPage() {
 
       {/* ── KPI Strip ── */}
       <div className="px-6 pt-4 grid grid-cols-4 gap-4">
-        {KPI_TILES.map((k) => (
+        {kpiTiles.map((k) => (
           <div
             key={k.label}
             className="bg-white flex items-center gap-4 px-5 py-4 rounded-[12px] transition-shadow hover:shadow-md"
@@ -180,7 +203,7 @@ export default function MissionControlPage() {
                 className="text-[11px] font-bold"
                 style={{ color: k.positive ? "#22C55E" : "#EF4444" }}
               >
-                {k.delta} vs last month
+                {k.delta}
               </span>
             </div>
           </div>

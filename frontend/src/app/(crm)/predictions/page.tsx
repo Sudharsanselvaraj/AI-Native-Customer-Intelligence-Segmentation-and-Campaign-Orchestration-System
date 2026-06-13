@@ -59,14 +59,7 @@ export default function PredictionsPage() {
         </div>
         <div>
           <h1 className="text-[16px] font-bold" style={{ color: "var(--t1)", letterSpacing: "-0.02em" }}>Predictions</h1>
-          <p className="text-[12px]" style={{ color: "var(--t3)" }}>AI-powered forecasting · Updated hourly</p>
-        </div>
-        <div
-          className="ml-auto flex items-center gap-2 px-3.5 py-2 rounded-[10px] text-[12px] font-bold"
-          style={{ background: "rgba(99,91,255,0.07)", color: "#635BFF" }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#635BFF" }} />
-          Claude AI Active
+          <p className="text-[12px]" style={{ color: "var(--t3)" }}>Statistical forecasts based on historical order and campaign data</p>
         </div>
       </div>
 
