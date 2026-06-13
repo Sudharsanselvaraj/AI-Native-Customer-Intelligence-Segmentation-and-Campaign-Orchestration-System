@@ -248,13 +248,28 @@ Based on the segment and goal, output ONLY JSON:
 
         while iteration < max_iterations:
             iteration += 1
-            response = self.client.chat.completions.create(
-                model=settings.AI_MODEL,
-                messages=messages,
-                tools=COPILOT_TOOLS,
-                tool_choice="auto",
-                max_tokens=400,
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=settings.AI_MODEL,
+                    messages=messages,
+                    tools=COPILOT_TOOLS,
+                    tool_choice="auto",
+                    max_tokens=400,
+                )
+            except Exception as tool_err:
+                # Groq/Llama sometimes fails to parse its own tool-call output;
+                # fall back to a plain text response without tools.
+                if "tool_use_failed" in str(tool_err) or "Failed to call" in str(tool_err):
+                    plain = self.client.chat.completions.create(
+                        model=settings.AI_MODEL,
+                        messages=messages,
+                        max_tokens=400,
+                    )
+                    return {
+                        "message": plain.choices[0].message.content or "Done.",
+                        "actions_taken": actions_taken,
+                    }
+                raise
 
             choice = response.choices[0]
             assistant_message = choice.message
