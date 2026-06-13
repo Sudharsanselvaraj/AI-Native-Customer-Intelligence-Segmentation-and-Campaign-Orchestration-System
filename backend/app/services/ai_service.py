@@ -149,7 +149,7 @@ class AIService:
                     {"role": "system", "content": SEGMENT_SQL_SYSTEM},
                     {"role": "user", "content": natural_language}
                 ],
-                max_tokens=500,
+                max_tokens=400,
                 temperature=0.1,
             )
             raw = response.choices[0].message.content.strip()
@@ -186,7 +186,7 @@ Respond ONLY with this exact JSON structure, no markdown:
                     },
                     {"role": "user", "content": f"{prompt}\n{context}"}
                 ],
-                max_tokens=600,
+                max_tokens=400,
                 temperature=0.7,
             )
             raw = response.choices[0].message.content.strip()
@@ -220,7 +220,7 @@ Based on the segment and goal, output ONLY JSON:
                         "content": f"Segment: {segment_description}\nGoal: {campaign_goal}"
                     }
                 ],
-                max_tokens=500,
+                max_tokens=400,
                 temperature=0.3,
             )
             raw = response.choices[0].message.content.strip()
@@ -253,7 +253,7 @@ Based on the segment and goal, output ONLY JSON:
                 messages=messages,
                 tools=COPILOT_TOOLS,
                 tool_choice="auto",
-                max_tokens=700,
+                max_tokens=400,
             )
 
             choice = response.choices[0]
@@ -340,7 +340,7 @@ Respond ONLY with a JSON array (no markdown):
                     },
                     {"role": "user", "content": f"Analyze these CRM stats:\n{summary}"}
                 ],
-                max_tokens=600,
+                max_tokens=400,
                 temperature=0.5,
             )
             raw = response.choices[0].message.content.strip()
@@ -406,7 +406,7 @@ create a complete campaign workflow plan. Respond ONLY with this JSON (no markdo
                         "content": f"Goal: {goal}\n\nCurrent analytics: {json.dumps(analytics_context, default=str)[:800]}"
                     }
                 ],
-                max_tokens=600,
+                max_tokens=400,
                 temperature=0.6,
             )
             raw = response.choices[0].message.content.strip()
