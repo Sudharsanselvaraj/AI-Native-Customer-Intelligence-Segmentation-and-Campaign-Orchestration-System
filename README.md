@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/ChatGPT Image Jun 12, 2026, 07_00_08 PM (1).png" alt="AsterCRM Logo" width="300"/>
+<img src="assets/ChatGPT Image Jun 12, 2026, 07_00_08 PM (1).png" alt="AsterCRM Logo" width="280"/>
 
 ### Autonomous Customer Engagement Intelligence Platform
 
