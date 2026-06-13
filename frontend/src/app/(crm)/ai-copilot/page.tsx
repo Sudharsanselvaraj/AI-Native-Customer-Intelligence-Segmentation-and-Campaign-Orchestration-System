@@ -5,7 +5,7 @@ import { chatWithCopilot } from "@/lib/api";
 import {
   Sparkles, Send, RefreshCw, User, Zap, CheckCircle, Play,
   Target, Megaphone, BarChart3, TrendingDown, ArrowRight,
-  Plus, MessageSquare, Trash2
+  Plus, MessageSquare, Trash2, PanelLeftClose, PanelLeftOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -180,6 +180,7 @@ function AICopilotInner() {
   const [input, setInput]           = useState("");
   const [loading, setLoading]       = useState(false);
   const [sessionId, setSessionId]   = useState<string | undefined>();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const endRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -277,8 +278,11 @@ function AICopilotInner() {
     <div className="flex h-full" style={{ background: "#F9FAFB" }}>
 
       {/* ── Session sidebar ── */}
-      <div className="w-56 shrink-0 flex flex-col" style={{ background: "#fff", borderRight: "1px solid #E5E7EB" }}>
-        <div className="px-3 pt-4 pb-2 flex items-center justify-between">
+      <div
+        className="shrink-0 flex flex-col transition-all duration-200 overflow-hidden"
+        style={{ width: sidebarOpen ? 224 : 0, background: "#fff", borderRight: sidebarOpen ? "1px solid #E5E7EB" : "none" }}
+      >
+        <div className="px-3 pt-4 pb-2 flex items-center justify-between" style={{ minWidth: 224 }}>
           <span className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: "#9CA3AF" }}>History</span>
           <button
             onClick={startNew}
@@ -323,9 +327,19 @@ function AICopilotInner() {
       <div className="flex flex-col flex-1 min-w-0">
       {/* ── Header ── */}
       <div
-        className="px-6 h-[56px] flex items-center gap-4 shrink-0"
+        className="px-4 h-[56px] flex items-center gap-3 shrink-0"
         style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E7EB" }}
       >
+        <button
+          onClick={() => setSidebarOpen(v => !v)}
+          className="w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors hover:bg-gray-100"
+          title={sidebarOpen ? "Hide history" : "Show history"}
+        >
+          {sidebarOpen
+            ? <PanelLeftClose className="w-4 h-4" style={{ color: "#6B7280" }} />
+            : <PanelLeftOpen  className="w-4 h-4" style={{ color: "#6B7280" }} />
+          }
+        </button>
         <div
           className="w-8 h-8 rounded-[10px] flex items-center justify-center"
           style={{ background: "linear-gradient(135deg, rgba(99,91,255,0.15), rgba(139,92,246,0.15))" }}
