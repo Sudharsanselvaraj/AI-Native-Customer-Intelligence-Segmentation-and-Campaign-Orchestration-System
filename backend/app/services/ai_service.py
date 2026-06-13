@@ -186,7 +186,7 @@ Respond ONLY with this exact JSON structure, no markdown:
                     },
                     {"role": "user", "content": f"{prompt}\n{context}"}
                 ],
-                max_tokens=800,
+                max_tokens=600,
                 temperature=0.7,
             )
             raw = response.choices[0].message.content.strip()
@@ -253,7 +253,7 @@ Based on the segment and goal, output ONLY JSON:
                 messages=messages,
                 tools=COPILOT_TOOLS,
                 tool_choice="auto",
-                max_tokens=1000,
+                max_tokens=700,
             )
 
             choice = response.choices[0]
@@ -340,7 +340,7 @@ Respond ONLY with a JSON array (no markdown):
                     },
                     {"role": "user", "content": f"Analyze these CRM stats:\n{summary}"}
                 ],
-                max_tokens=800,
+                max_tokens=600,
                 temperature=0.5,
             )
             raw = response.choices[0].message.content.strip()
@@ -406,7 +406,7 @@ create a complete campaign workflow plan. Respond ONLY with this JSON (no markdo
                         "content": f"Goal: {goal}\n\nCurrent analytics: {json.dumps(analytics_context, default=str)[:800]}"
                     }
                 ],
-                max_tokens=1200,
+                max_tokens=600,
                 temperature=0.6,
             )
             raw = response.choices[0].message.content.strip()
