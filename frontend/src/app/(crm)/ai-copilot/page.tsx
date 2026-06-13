@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -296,7 +297,37 @@ function AICopilotInner() {
                     : { background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)", color: "var(--t1)" }
                   }
                 >
-                  {m.content}
+                  {m.role === "user" ? m.content : (
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => <p className="text-[15px] font-bold mb-2" style={{ color: "var(--t1)" }}>{children}</p>,
+                        h2: ({ children }) => <p className="text-[13px] font-bold mt-3 mb-1.5" style={{ color: "var(--t1)" }}>{children}</p>,
+                        h3: ({ children }) => <p className="text-[12px] font-semibold mt-2 mb-1" style={{ color: "var(--t1)" }}>{children}</p>,
+                        p:  ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold" style={{ color: "var(--t1)" }}>{children}</strong>,
+                        em: ({ children }) => <em className="italic" style={{ color: "var(--t2)" }}>{children}</em>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li className="text-[13px]">{children}</li>,
+                        hr: () => <hr className="my-2" style={{ borderColor: "var(--border)" }} />,
+                        code: ({ children }) => (
+                          <code className="px-1.5 py-0.5 rounded text-[12px] font-mono" style={{ background: "rgba(99,91,255,0.08)", color: "#635BFF" }}>
+                            {children}
+                          </code>
+                        ),
+                        table: ({ children }) => (
+                          <div className="overflow-x-auto my-2">
+                            <table className="text-[12px] w-full border-collapse">{children}</table>
+                          </div>
+                        ),
+                        thead: ({ children }) => <thead style={{ borderBottom: "1px solid var(--border)" }}>{children}</thead>,
+                        th: ({ children }) => <th className="text-left px-3 py-1.5 font-semibold text-[11px] uppercase tracking-wide" style={{ color: "var(--t3)" }}>{children}</th>,
+                        td: ({ children }) => <td className="px-3 py-1.5" style={{ borderBottom: "1px solid var(--border)", color: "var(--t1)" }}>{children}</td>,
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
 
                 {m.workflow && (
