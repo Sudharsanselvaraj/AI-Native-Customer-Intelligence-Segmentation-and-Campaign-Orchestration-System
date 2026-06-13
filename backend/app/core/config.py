@@ -22,10 +22,14 @@ class Settings(BaseSettings):
     CHANNEL_SIMULATOR_URL: str = "http://localhost:8001"
     CRM_RECEIPT_URL: str = "http://localhost:8000"
 
-    # AI
+    # AI — primary (Groq)
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
     AI_MODEL: str = "anthropic/claude-sonnet-4-5"
+
+    # AI — fallback (Gemini)
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     # Auth
     SECRET_KEY: str = "supersecretkey-change-in-production-32chars"

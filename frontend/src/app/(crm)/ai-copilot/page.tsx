@@ -373,7 +373,7 @@ function AICopilotInner() {
                 className="w-14 h-14 rounded-[18px] flex items-center justify-center mx-auto mb-4"
                 style={{ background: "linear-gradient(135deg, rgba(99,91,255,0.12), rgba(139,92,246,0.12))", border: "1px solid rgba(99,91,255,0.15)" }}
               >
-                <Zap className="w-7 h-7" style={{ color: "#635BFF" }} />
+                <img src="/aster-logo.png" alt="Aster" style={{ width: 32, height: 32, objectFit: "contain" }} />
               </div>
               <h2 className="text-[22px] font-bold" style={{ color: "var(--t1)", letterSpacing: "-0.025em" }}>
                 Ask Aster

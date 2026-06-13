@@ -405,7 +405,7 @@ export default function Customer360Page() {
                 </div>
                 <h2 className="text-[13px] font-semibold" style={{ color: "#111827" }}>AI Profile</h2>
                 <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "#F5F3FF", color: "#7C3AED" }}>Claude</span>
+                  style={{ background: "#F5F3FF", color: "#7C3AED" }}>Aster AI</span>
               </div>
               <div className="px-4 py-4 space-y-3">
 

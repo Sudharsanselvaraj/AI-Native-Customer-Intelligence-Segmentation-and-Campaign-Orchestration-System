@@ -33,15 +33,23 @@ def make_tool_executor(db: Session):
             prompt = args["prompt"]
             segment_id = args.get("segment_id")
             seg_name = None
+
             if segment_id:
+                # Try by UUID first, then fall back to name lookup
                 seg = db.query(Segment).filter(Segment.id == segment_id).first()
-                seg_name = seg.name if seg else None
+                if not seg:
+                    seg = db.query(Segment).filter(Segment.name.ilike(segment_id)).first()
+                if seg:
+                    segment_id = seg.id
+                    seg_name = seg.name
+                else:
+                    segment_id = None
 
             gen = ai_service.generate_campaign(prompt, seg_name)
 
             if not segment_id:
-                # Use first available segment
-                segs = db.query(Segment).limit(1).all()
+                # Use most recent segment
+                segs = db.query(Segment).order_by(Segment.created_at.desc()).limit(1).all()
                 segment_id = segs[0].id if segs else None
 
             if not segment_id:
@@ -125,7 +133,13 @@ def chat(request: Request, req: CopilotRequest, db: Session = Depends(get_db)):
         # Surface credit exhaustion as a readable message instead of a 500
         if "402" in err or "afford" in err or "credits" in err.lower():
             return {
-                "message": "⚠️ The AI service is temporarily unavailable — the OpenRouter API account has run out of credits. Please top up at [openrouter.ai/settings/credits](https://openrouter.ai/settings/credits) and try again.",
+                "message": "⚠️ The AI service is temporarily unavailable — API credits exhausted. Please try again shortly.",
+                "actions_taken": [],
+                "session_id": session_id,
+            }
+        if "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower():
+            return {
+                "message": "⚠️ AI rate limit reached. Both Groq and Gemini are at capacity. Please try again in a minute.",
                 "actions_taken": [],
                 "session_id": session_id,
             }

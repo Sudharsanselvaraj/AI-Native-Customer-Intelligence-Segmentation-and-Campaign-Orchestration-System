@@ -7,10 +7,41 @@ import structlog
 
 logger = structlog.get_logger()
 
+# Primary: Groq
 client = OpenAI(
     api_key=settings.OPENROUTER_API_KEY,
     base_url=settings.OPENROUTER_BASE_URL,
 )
+
+# Fallback: Gemini (OpenAI-compatible endpoint)
+_gemini_client: Optional[OpenAI] = None
+
+def _get_gemini_client() -> Optional[OpenAI]:
+    global _gemini_client
+    if not settings.GEMINI_API_KEY:
+        return None
+    if _gemini_client is None:
+        _gemini_client = OpenAI(
+            api_key=settings.GEMINI_API_KEY,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        )
+    return _gemini_client
+
+def _is_rate_limit(err: str) -> bool:
+    return "429" in err or "rate_limit" in err.lower() or "rate limit" in err.lower()
+
+def _call_with_fallback(primary_fn, fallback_fn):
+    """Call primary_fn; if it hits a rate limit, call fallback_fn instead."""
+    try:
+        return primary_fn()
+    except Exception as e:
+        if _is_rate_limit(str(e)):
+            fb = _get_gemini_client()
+            if fb:
+                logger.info("groq_rate_limit_falling_back_to_gemini")
+                return fallback_fn(fb)
+            raise
+        raise
 
 SYSTEM_PROMPT = """You are Aster, an AI marketing copilot for AsterCRM. You help marketers understand customers, build segments, create campaigns, and analyse performance.
 
@@ -21,15 +52,27 @@ IMPORTANT RULES:
 - Be concise. 3–5 sentences max for analytics summaries. Use bullet points for lists.
 - If asked about the company or platform, explain that AsterCRM is an AI-native CRM with segments, campaigns, analytics, and an AI copilot."""
 
-SEGMENT_SQL_SYSTEM = """You are a SQL expert for a customer engagement platform. 
+SEGMENT_SQL_SYSTEM = """You are a SQL expert for a customer engagement platform.
 The database has these tables:
 - customers(id, name, email, phone, city, gender, age, created_at)
 - orders(id, customer_id, amount, category, purchase_date, created_at)
 
-Generate a PostgreSQL WHERE clause (no SELECT, just the WHERE conditions) for customer IDs based on natural language.
-The query must return customer IDs. Always use subqueries referencing customers.id.
+Generate a PostgreSQL WHERE clause that filters the customers table. Output ONLY the condition (no SELECT, no WHERE keyword).
+
+STRICT RULES:
+1. The clause runs as: SELECT ... FROM customers WHERE <your_sql>
+   So you can only reference columns that exist on customers: id, name, email, phone, city, gender, age, created_at
+2. To filter by orders data, use a subquery: id IN (SELECT customer_id FROM orders WHERE <orders_conditions>)
+   Inside the subquery you may use orders columns: customer_id, amount, category, purchase_date, created_at
+3. NEVER reference orders columns (amount, category, purchase_date) outside a subquery.
+4. NEVER use INTERVAL '1 quarter' — not valid in PostgreSQL. Use INTERVAL '3 months'.
+5. NEVER start the clause with WHERE.
+6. For "last quarter": id IN (SELECT customer_id FROM orders WHERE purchase_date >= date_trunc('quarter', NOW() - INTERVAL '3 months') AND purchase_date < date_trunc('quarter', NOW()))
+7. For "inactive 60+ days": id NOT IN (SELECT customer_id FROM orders WHERE purchase_date >= NOW() - INTERVAL '60 days')
+8. For "high value / VIP": id IN (SELECT customer_id FROM orders GROUP BY customer_id HAVING SUM(amount) > 10000)
+
 Respond ONLY with valid JSON: {"sql": "...", "description": "..."}
-Do not use markdown, do not explain, just JSON."""
+No markdown, no explanation, just JSON."""
 
 COPILOT_TOOLS = [
     {
@@ -146,16 +189,20 @@ class AIService:
 
     def generate_segment_sql(self, natural_language: str) -> Dict[str, str]:
         """Convert natural language to SQL WHERE clause for customer segmentation."""
+        msgs = [
+            {"role": "system", "content": SEGMENT_SQL_SYSTEM},
+            {"role": "user", "content": natural_language}
+        ]
         try:
-            response = self.client.chat.completions.create(
-                model=settings.AI_MODEL,
-                messages=[
-                    {"role": "system", "content": SEGMENT_SQL_SYSTEM},
-                    {"role": "user", "content": natural_language}
-                ],
-                max_tokens=400,
-                temperature=0.1,
-            )
+            def primary():
+                return self.client.chat.completions.create(
+                    model=settings.AI_MODEL, messages=msgs, max_tokens=400, temperature=0.1,
+                )
+            def fallback(fb_client):
+                return fb_client.chat.completions.create(
+                    model=settings.GEMINI_MODEL, messages=msgs, max_tokens=400, temperature=0.1,
+                )
+            response = _call_with_fallback(primary, fallback)
             raw = response.choices[0].message.content.strip()
             # Strip markdown if model wraps in ```json
             raw = re.sub(r"```(?:json)?", "", raw).strip().strip("`")
@@ -168,13 +215,10 @@ class AIService:
     def generate_campaign(self, prompt: str, segment_name: Optional[str] = None) -> Dict[str, Any]:
         """Generate a complete campaign from a prompt."""
         context = f"Target segment: {segment_name}" if segment_name else ""
-        try:
-            response = self.client.chat.completions.create(
-                model=settings.AI_MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are a marketing campaign expert. Generate campaign details as JSON.
+        msgs = [
+            {
+                "role": "system",
+                "content": """You are a marketing campaign expert. Generate campaign details as JSON.
 Respond ONLY with this exact JSON structure, no markdown:
 {
   "name": "campaign name",
@@ -187,12 +231,19 @@ Respond ONLY with this exact JSON structure, no markdown:
   "expected_conversion": 0.12,
   "target_segment_suggestion": "optional segment description"
 }"""
-                    },
-                    {"role": "user", "content": f"{prompt}\n{context}"}
-                ],
-                max_tokens=400,
-                temperature=0.7,
-            )
+            },
+            {"role": "user", "content": f"{prompt}\n{context}"}
+        ]
+        try:
+            def primary():
+                return self.client.chat.completions.create(
+                    model=settings.AI_MODEL, messages=msgs, max_tokens=400, temperature=0.7,
+                )
+            def fallback(fb_client):
+                return fb_client.chat.completions.create(
+                    model=settings.GEMINI_MODEL, messages=msgs, max_tokens=400, temperature=0.7,
+                )
+            response = _call_with_fallback(primary, fallback)
             raw = response.choices[0].message.content.strip()
             raw = re.sub(r"```(?:json)?", "", raw).strip().strip("`")
             return json.loads(raw)
@@ -250,22 +301,45 @@ Based on the segment and goal, output ONLY JSON:
         max_iterations = 3
         iteration = 0
 
+        # Determine which client+model to use (Groq primary, Gemini fallback)
+        active_client = self.client
+        active_model = settings.AI_MODEL
+
         while iteration < max_iterations:
             iteration += 1
             try:
-                response = self.client.chat.completions.create(
-                    model=settings.AI_MODEL,
-                    messages=messages,
-                    tools=COPILOT_TOOLS,
-                    tool_choice="auto",
-                    max_tokens=400,
-                )
+                try:
+                    response = active_client.chat.completions.create(
+                        model=active_model,
+                        messages=messages,
+                        tools=COPILOT_TOOLS,
+                        tool_choice="auto",
+                        max_tokens=400,
+                    )
+                except Exception as primary_err:
+                    if _is_rate_limit(str(primary_err)):
+                        fb = _get_gemini_client()
+                        if fb:
+                            logger.info("copilot_groq_rate_limit_falling_back_to_gemini")
+                            active_client = fb
+                            active_model = settings.GEMINI_MODEL
+                            response = active_client.chat.completions.create(
+                                model=active_model,
+                                messages=messages,
+                                tools=COPILOT_TOOLS,
+                                tool_choice="auto",
+                                max_tokens=400,
+                            )
+                        else:
+                            raise
+                    else:
+                        raise
             except Exception as tool_err:
                 # Groq/Llama sometimes fails to parse its own tool-call output;
                 # fall back to a plain text response without tools.
                 if "tool_use_failed" in str(tool_err) or "Failed to call" in str(tool_err):
-                    plain = self.client.chat.completions.create(
-                        model=settings.AI_MODEL,
+                    plain = active_client.chat.completions.create(
+                        model=active_model,
                         messages=messages,
                         max_tokens=400,
                     )

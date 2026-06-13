@@ -175,7 +175,7 @@ export default function MissionControlPage() {
                 </button>
               ))}
               <div className="px-4 py-2.5" style={{ borderTop: "1px solid #F3F4F6" }}>
-                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Powered by Claude · Full agentic CRM intelligence</p>
+                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Powered by Aster AI · Full agentic CRM intelligence</p>
               </div>
             </div>
           )}

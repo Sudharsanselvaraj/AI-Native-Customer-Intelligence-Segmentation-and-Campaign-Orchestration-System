@@ -241,7 +241,7 @@ export default function SegmentsPage() {
           <button onClick={openBuilder}
             className="flex items-center gap-1.5 px-3 py-2 rounded-[7px] text-[13px] font-medium text-white"
             style={{ background: "#2563EB" }}>
-            <Sparkles className="w-4 h-4" />Build AI Segment
+            <img src="/aster-logo.png" alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />Build AI Segment
           </button>
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function SegmentsPage() {
               style={{ borderBottom: "1px solid #F3F4F6" }}>
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-[7px] flex items-center justify-center" style={{ background: "#EFF6FF" }}>
-                  <Sparkles className="w-4 h-4" style={{ color: "#2563EB" }} />
+                  <img src="/aster-logo.png" alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
                 </div>
                 <h2 className="text-[15px] font-semibold" style={{ color: "#111827" }}>AI Segment Builder</h2>
               </div>
@@ -287,7 +287,7 @@ export default function SegmentsPage() {
                     Describe your target audience
                   </p>
                   <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
-                    Describe in plain language — Claude will translate it into a precise segment.
+                    Describe in plain language — Aster AI will translate it into a precise segment.
                   </p>
                   <textarea
                     className="w-full px-3 py-2.5 rounded-[8px] text-[13px] resize-none"
@@ -467,7 +467,7 @@ export default function SegmentsPage() {
                     disabled={generating || !prompt.trim()}
                     className="flex items-center gap-2 px-5 py-2 rounded-[7px] text-[13px] font-semibold text-white"
                     style={{ background: generating || !prompt.trim() ? "#93C5FD" : "#2563EB", cursor: generating || !prompt.trim() ? "not-allowed" : "pointer" }}>
-                    {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Generating…</> : <><Sparkles className="w-4 h-4" />Generate Segment</>}
+                    {generating ? <><Loader2 className="w-4 h-4 animate-spin" />Generating…</> : <><img src="/aster-logo.png" alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)" }} />Generate Segment</>}
                   </button>
                 )}
 
@@ -514,7 +514,7 @@ export default function SegmentsPage() {
             <button onClick={openBuilder}
               className="px-4 py-2 rounded-[8px] text-[13px] font-medium text-white"
               style={{ background: "#2563EB" }}>
-              <Sparkles className="w-4 h-4 inline mr-1.5" />Create Segment
+              <img src="/aster-logo.png" alt="" style={{ width: 16, height: 16, objectFit: "contain", filter: "brightness(0) invert(1)", display: "inline", verticalAlign: "middle", marginRight: 6 }} />Create Segment
             </button>
           </div>
         ) : (

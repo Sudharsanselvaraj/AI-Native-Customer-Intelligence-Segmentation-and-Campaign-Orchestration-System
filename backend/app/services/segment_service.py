@@ -2,6 +2,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional, Tuple
 from datetime import datetime
+import structlog
+
+logger = structlog.get_logger()
 
 from app.models.models import Segment, Customer, Order
 from app.schemas.schemas import SegmentCreate, SegmentUpdate, NLSegmentRequest
@@ -94,9 +97,12 @@ class SegmentService:
         return seg
 
     def delete_segment(self, db: Session, segment_id: str) -> bool:
+        from app.models.models import Campaign
         seg = self.get_segment(db, segment_id)
         if not seg:
             return False
+        # Delete campaigns referencing this segment first (segment_id is NOT NULL)
+        db.query(Campaign).filter(Campaign.segment_id == segment_id).delete(synchronize_session=False)
         db.delete(seg)
         db.commit()
         return True
@@ -120,14 +126,15 @@ class SegmentService:
         try:
             row = db.execute(text(f"SELECT COUNT(*) FROM customers WHERE {safe_sql}")).fetchone()
             return row[0] if row else 0
-        except Exception:
+        except Exception as e:
             db.rollback()
+            logger.warning("segment_sql_count_failed", error=str(e), sql=safe_sql[:200])
             return 0
 
     def _estimate_revenue(self, db: Session, safe_sql: str) -> float:
         try:
             row = db.execute(
-                text(f"SELECT COALESCE(SUM(o.amount), 0) FROM orders o JOIN customers c ON c.id = o.customer_id WHERE {safe_sql}")
+                text(f"SELECT COALESCE(SUM(o.amount), 0) FROM orders o JOIN customers c ON c.id = o.customer_id WHERE c.id IN (SELECT id FROM customers WHERE {safe_sql})")
             ).fetchone()
             return float(row[0]) if row else 0.0
         except Exception:
@@ -146,6 +153,9 @@ class SegmentService:
         5. Wrap in a CTE so it can only be used as a filter expression
         """
         sql = sql.strip()
+        # Strip leading WHERE keyword if AI included it
+        if sql.upper().startswith("WHERE "):
+            sql = sql[6:].strip()
         upper = sql.upper()
 
         # Layer 1 — DDL / DML / dangerous builtins
