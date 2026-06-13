@@ -4,11 +4,53 @@ import { useSearchParams } from "next/navigation";
 import { chatWithCopilot } from "@/lib/api";
 import {
   Sparkles, Send, RefreshCw, User, Zap, CheckCircle, Play,
-  Target, Megaphone, BarChart3, TrendingDown, ArrowRight
+  Target, Megaphone, BarChart3, TrendingDown, ArrowRight,
+  Plus, MessageSquare, Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 import ReactMarkdown from "react-markdown";
+
+// ── Conversation persistence (localStorage) ──────────────────────────────────
+const STORAGE_KEY = "aster_copilot_sessions";
+
+interface Session {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+function loadSessions(): Session[] {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  catch { return []; }
+}
+
+function saveSessions(sessions: Session[]) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); }
+  catch {}
+}
+
+function newSessionId() {
+  return `s_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function sessionTitle(messages: Message[]): string {
+  const first = messages.find((m) => m.role === "user");
+  if (!first) return "New conversation";
+  return first.content.length > 45 ? first.content.slice(0, 45) + "…" : first.content;
+}
+
+function timeLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
 
 interface Message {
   role: "user" | "assistant";
@@ -132,12 +174,20 @@ function WorkflowCard({ plan, onApprove, onReject }: { plan: WorkflowPlan; onApp
 
 function AICopilotInner() {
   const params = useSearchParams();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [sessionId, setSessionId] = useState<string | undefined>();
-  const endRef = useRef<HTMLDivElement>(null);
+  const [sessions, setSessions]     = useState<Session[]>([]);
+  const [activeId, setActiveId]     = useState<string>("");
+  const [messages, setMessages]     = useState<Message[]>([]);
+  const [input, setInput]           = useState("");
+  const [loading, setLoading]       = useState(false);
+  const [sessionId, setSessionId]   = useState<string | undefined>();
+  const endRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load persisted sessions on mount
+  useEffect(() => {
+    const saved = loadSessions();
+    setSessions(saved);
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,11 +195,57 @@ function AICopilotInner() {
 
   useEffect(() => {
     const q = params.get("q");
-    if (q) { send(q); }
+    if (q) send(q);
   }, []);
+
+  // Persist whenever messages change (and there are messages)
+  useEffect(() => {
+    if (!messages.length || !activeId) return;
+    setSessions((prev) => {
+      const now = new Date().toISOString();
+      const exists = prev.find((s) => s.id === activeId);
+      let updated: Session[];
+      if (exists) {
+        updated = prev.map((s) =>
+          s.id === activeId ? { ...s, messages, title: sessionTitle(messages), updatedAt: now } : s
+        );
+      } else {
+        updated = [{ id: activeId, title: sessionTitle(messages), messages, createdAt: now, updatedAt: now }, ...prev];
+      }
+      saveSessions(updated);
+      return updated;
+    });
+  }, [messages, activeId]);
+
+  const startNew = () => {
+    setActiveId(newSessionId());
+    setMessages([]);
+    setSessionId(undefined);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  const loadSession = (s: Session) => {
+    setActiveId(s.id);
+    setMessages(s.messages);
+    setSessionId(undefined);
+  };
+
+  const deleteSession = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSessions((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      saveSessions(updated);
+      return updated;
+    });
+    if (activeId === id) { setActiveId(""); setMessages([]); setSessionId(undefined); }
+  };
 
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
+    // Start a new session automatically if none active
+    const curId = activeId || (() => { const id = newSessionId(); setActiveId(id); return id; })();
+    if (!activeId) setActiveId(curId);
     const userMsg: Message = { role: "user", content: text };
     setMessages((p) => [...p, userMsg]);
     setInput("");
@@ -178,7 +274,53 @@ function AICopilotInner() {
   const rejectWorkflow = () => { setInput(`I'd like to modify the plan. `); inputRef.current?.focus(); };
 
   return (
-    <div className="flex flex-col h-full" style={{ background: "#F9FAFB" }}>
+    <div className="flex h-full" style={{ background: "#F9FAFB" }}>
+
+      {/* ── Session sidebar ── */}
+      <div className="w-56 shrink-0 flex flex-col" style={{ background: "#fff", borderRight: "1px solid #E5E7EB" }}>
+        <div className="px-3 pt-4 pb-2 flex items-center justify-between">
+          <span className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: "#9CA3AF" }}>History</span>
+          <button
+            onClick={startNew}
+            className="w-7 h-7 rounded-[8px] flex items-center justify-center transition-colors hover:bg-gray-100"
+            title="New conversation"
+          >
+            <Plus className="w-4 h-4" style={{ color: "#635BFF" }} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+          {sessions.length === 0 && (
+            <p className="text-[11px] px-2 pt-2" style={{ color: "#9CA3AF" }}>No conversations yet</p>
+          )}
+          {sessions.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => loadSession(s)}
+              className="w-full text-left px-2 py-2 rounded-[8px] group flex items-start gap-2 transition-colors"
+              style={{
+                background: activeId === s.id ? "rgba(99,91,255,0.08)" : "transparent",
+              }}
+            >
+              <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: activeId === s.id ? "#635BFF" : "#9CA3AF" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-medium truncate leading-tight" style={{ color: activeId === s.id ? "#635BFF" : "#374151" }}>
+                  {s.title}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{timeLabel(s.updatedAt)}</p>
+              </div>
+              <button
+                onClick={(e) => deleteSession(s.id, e)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5"
+              >
+                <Trash2 className="w-3 h-3" style={{ color: "#EF4444" }} />
+              </button>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Main chat area ── */}
+      <div className="flex flex-col flex-1 min-w-0">
       {/* ── Header ── */}
       <div
         className="px-6 h-[56px] flex items-center gap-4 shrink-0"
@@ -194,15 +336,13 @@ function AICopilotInner() {
           <span className="text-[14px] font-semibold" style={{ color: "var(--t1)" }}>AI Copilot</span>
           <span className="text-[12px] ml-2" style={{ color: "var(--t3)" }}>Powered by Claude</span>
         </div>
-        {messages.length > 0 && (
-          <button
-            onClick={() => { setMessages([]); setSessionId(undefined); }}
-            className="ml-auto flex items-center gap-1.5 text-[12px] font-medium transition-colors hover:text-gray-700"
-            style={{ color: "var(--t3)" }}
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> New conversation
-          </button>
-        )}
+        <button
+          onClick={startNew}
+          className="ml-auto flex items-center gap-1.5 text-[12px] font-medium transition-colors hover:text-gray-700"
+          style={{ color: "var(--t3)" }}
+        >
+          <Plus className="w-3.5 h-3.5" /> New conversation
+        </button>
       </div>
 
       {/* ── Messages ── */}
@@ -410,9 +550,10 @@ function AICopilotInner() {
           </button>
         </form>
         <p className="text-center text-[11px] mt-2" style={{ color: "var(--t3)" }}>
-          Powered by Claude AI · Agentic CRM actions in natural language
+          Powered by Groq · Agentic CRM actions in natural language
         </p>
       </div>
+      </div>{/* end main chat area */}
     </div>
   );
 }
