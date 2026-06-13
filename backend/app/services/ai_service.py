@@ -12,10 +12,14 @@ client = OpenAI(
     base_url=settings.OPENROUTER_BASE_URL,
 )
 
-SYSTEM_PROMPT = """You are ShopperReach AI, an intelligent marketing copilot for consumer brands.
-You help marketers understand their customer base, build smart segments, create compelling campaigns, and measure performance.
-You have access to tools to create segments, build campaigns, and fetch analytics.
-Always be concise, data-driven, and action-oriented. When you take an action, confirm it clearly."""
+SYSTEM_PROMPT = """You are Aster, an AI marketing copilot for AsterCRM. You help marketers understand customers, build segments, create campaigns, and analyse performance.
+
+IMPORTANT RULES:
+- For casual greetings or unclear inputs (e.g. "hi", "company", "hello"), respond conversationally WITHOUT calling any tools.
+- Only call tools when the user explicitly asks for data, wants to create something, or requests an action.
+- After tool results come back, ALWAYS write a clear, helpful natural-language summary of what you found or did. Never just say "I've completed the requested actions."
+- Be concise. 3–5 sentences max for analytics summaries. Use bullet points for lists.
+- If asked about the company or platform, explain that AsterCRM is an AI-native CRM with segments, campaigns, analytics, and an AI copilot."""
 
 SEGMENT_SQL_SYSTEM = """You are a SQL expert for a customer engagement platform. 
 The database has these tables:
@@ -243,7 +247,7 @@ Based on the segment and goal, output ONLY JSON:
         messages.append({"role": "user", "content": message})
 
         actions_taken = []
-        max_iterations = 5
+        max_iterations = 3
         iteration = 0
 
         while iteration < max_iterations:
@@ -317,10 +321,26 @@ Based on the segment and goal, output ONLY JSON:
                     "content": tool_result_content,
                 })
 
-        return {
-            "message": "I've completed the requested actions.",
-            "actions_taken": actions_taken,
-        }
+        # Max iterations reached — force the model to summarise what it did
+        try:
+            messages.append({
+                "role": "user",
+                "content": "Please summarise what you just did and what you found in 3–5 clear sentences."
+            })
+            summary = self.client.chat.completions.create(
+                model=settings.AI_MODEL,
+                messages=messages,
+                max_tokens=400,
+            )
+            return {
+                "message": summary.choices[0].message.content or "All actions completed.",
+                "actions_taken": actions_taken,
+            }
+        except Exception:
+            return {
+                "message": f"I completed {len(actions_taken)} action(s): {', '.join(a['tool'] for a in actions_taken)}.",
+                "actions_taken": actions_taken,
+            }
 
 
     def generate_insights(self, stats: Dict[str, Any]) -> List[Dict[str, Any]]:
