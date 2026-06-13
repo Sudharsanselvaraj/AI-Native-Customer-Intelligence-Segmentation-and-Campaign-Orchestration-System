@@ -121,4 +121,12 @@ def chat(request: Request, req: CopilotRequest, db: Session = Depends(get_db)):
             "session_id": session_id,
         }
     except Exception as e:
-        raise HTTPException(500, f"Copilot error: {str(e)}")
+        err = str(e)
+        # Surface credit exhaustion as a readable message instead of a 500
+        if "402" in err or "afford" in err or "credits" in err.lower():
+            return {
+                "message": "⚠️ The AI service is temporarily unavailable — the OpenRouter API account has run out of credits. Please top up at [openrouter.ai/settings/credits](https://openrouter.ai/settings/credits) and try again.",
+                "actions_taken": [],
+                "session_id": session_id,
+            }
+        raise HTTPException(500, f"Copilot error: {err}")
