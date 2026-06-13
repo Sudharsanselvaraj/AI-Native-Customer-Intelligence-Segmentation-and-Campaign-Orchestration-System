@@ -1,6 +1,10 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 from app.db.session import get_db
 from app.services.ai_service import ai_service
@@ -101,7 +105,8 @@ def make_tool_executor(db: Session):
 
 
 @router.post("", response_model=CopilotResponse)
-def chat(req: CopilotRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def chat(request: Request, req: CopilotRequest, db: Session = Depends(get_db)):
     session_id = req.session_id or str(uuid.uuid4())
     history = [{"role": m.role, "content": m.content} for m in req.conversation_history]
     try:

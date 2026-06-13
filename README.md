@@ -531,6 +531,27 @@ pytest -v
 
 ---
 
+## Assignment Requirement → Implementation Mapping
+
+This table maps every requirement from the Xeno Engineering brief to the exact implementation in this codebase.
+
+| # | Assignment Requirement | Implementation | Key Files |
+|---|----------------------|----------------|-----------|
+| 1 | **Customer ingestion** — Accept customer data via API | `POST /api/customers` · Bulk CSV import (`POST /api/customers/bulk`) · CSV file upload (`POST /api/customers/import/csv`) | `backend/app/api/routes/customers.py` · `backend/app/services/customer_service.py` |
+| 2 | **Order ingestion** — Accept order/spend data | `POST /api/orders` · Bulk CSV import (`POST /api/orders/bulk`) · Automatic `total_spent` + `total_orders` aggregation via SQLAlchemy | `backend/app/api/routes/orders.py` · `backend/app/models/models.py` |
+| 3 | **Audience segmentation** — Define customer segments | Natural-language → SQL via Claude (`POST /api/segments/from-nl`); audience size + revenue preview before save; query stored as JSON for auditability | `backend/app/services/segment_service.py` · `backend/app/services/ai_service.py` |
+| 4 | **AI-generated campaigns** — Use LLM to generate campaign content | `POST /api/campaigns/generate` — Claude produces name, message template, channel recommendation, expected engagement + conversion; human reviews before `POST /api/campaigns` | `backend/app/api/routes/campaigns.py` · `backend/app/services/ai_service.py` |
+| 5 | **Campaign delivery** — Send messages to segment customers | `POST /api/campaigns/{id}/launch` → `dispatch_campaign.delay()` → Celery worker → HTTP POST to Channel Simulator per customer | `backend/app/workers/campaign_worker.py` · `channel-simulator/app/` |
+| 6 | **Delivery receipts / callbacks** — Track message status | Channel Simulator sends webhooks → `POST /api/receipts/webhook` → idempotency check → forward-only status guard (`SENT < DELIVERED < OPENED < CLICKED < CONVERTED`) → analytics update via Celery | `backend/app/api/routes/receipts.py` · `backend/app/workers/analytics_worker.py` |
+| 7 | **Campaign analytics** — Track engagement metrics | `CampaignAnalytics` table updated incrementally by `update_campaign_analytics.delay()`; dashboard reads pre-materialized row (O(1)); WebSocket broadcasts live to frontend | `backend/app/models/models.py` (CampaignAnalytics) · `backend/app/workers/analytics_worker.py` |
+| 8 | **Dashboard / reporting** — Visualise key metrics | Overview page with revenue trend, customer segments chart, recent activity feed, campaign performance; Analytics page with cohort retention, revenue by channel, city heat map | `frontend/src/app/(crm)/app/page.tsx` · `frontend/src/app/(crm)/analytics/page.tsx` |
+| 9 | **Real-time updates** — Live campaign progress | WebSocket endpoint `/ws/campaigns/{id}` backed by in-memory `ConnectionManager`; frontend auto-reconnects with 3s timeout, falls back to demo simulation | `backend/app/core/ws_manager.py` · `backend/app/api/routes/websocket.py` · `frontend/src/app/(crm)/campaigns/[id]/page.tsx` |
+| 10 | **AI Copilot (bonus)** — Natural language CRM actions | 6 tool-calling tools (create_segment, create_campaign, launch_campaign, get_analytics, search_customers, recommend_channel); 5-iteration agentic loop; `plan_workflow` human-approval gate before irreversible actions | `backend/app/api/routes/ai_copilot.py` · `backend/app/services/ai_service.py` |
+| 11 | **Channel simulation** | Separate FastAPI + Celery service; per-channel probability profiles (WhatsApp 92% delivered, Email 88%, SMS 95%); randomised SENT→DELIVERED→OPENED→READ→CLICKED→CONVERTED funnel with realistic delays | `channel-simulator/app/` |
+| 12 | **Scalability / design clarity** | Two-service async delivery; Celery queue separation (`campaigns` vs `analytics`); materialized analytics pattern; composite DB indexes; idempotency keys on Communications; structlog structured logging; 4 Architecture Decision Records | `docs/adr/` · `backend/app/models/models.py` |
+
+---
+
 <div align="center">
 
 Built for the Xeno Engineering Take-Home Assignment · June 2026
