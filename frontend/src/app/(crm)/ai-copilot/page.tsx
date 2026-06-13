@@ -293,10 +293,10 @@ function AICopilotInner() {
             <p className="text-[11px] px-2 pt-2" style={{ color: "#9CA3AF" }}>No conversations yet</p>
           )}
           {sessions.map((s) => (
-            <button
+            <div
               key={s.id}
               onClick={() => loadSession(s)}
-              className="w-full text-left px-2 py-2 rounded-[8px] group flex items-start gap-2 transition-colors"
+              className="w-full text-left px-2 py-2 rounded-[8px] group flex items-start gap-2 transition-colors cursor-pointer"
               style={{
                 background: activeId === s.id ? "rgba(99,91,255,0.08)" : "transparent",
               }}
@@ -314,7 +314,7 @@ function AICopilotInner() {
               >
                 <Trash2 className="w-3 h-3" style={{ color: "#EF4444" }} />
               </button>
-            </button>
+            </div>
           ))}
         </div>
       </div>
