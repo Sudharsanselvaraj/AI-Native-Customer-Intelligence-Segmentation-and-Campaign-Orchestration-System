@@ -278,35 +278,6 @@ export default function MissionControlPage() {
         </div>
       </div>
 
-      {/* ── AI Intelligence Banner ── */}
-      <div className="px-6 pt-4 pb-2">
-        <div
-          className="flex items-center gap-4 p-4 rounded-[12px]"
-          style={{ background: "linear-gradient(135deg, #635BFF, #8B5CF6)", boxShadow: "0 4px 20px rgba(99,91,255,0.2)" }}
-        >
-          <div
-            className="w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0"
-            style={{ background: "rgba(99,91,255,0.15)" }}
-          >
-            <Sparkles className="w-6 h-6" style={{ color: "#C4B5FD" }} />
-          </div>
-          <div className="flex-1">
-            <p className="text-[15px] font-bold text-white" style={{ letterSpacing: "-0.02em" }}>
-              AI Copilot is ready to help
-            </p>
-            <p className="text-[13px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
-              Describe any CRM task — build segments, create campaigns, run analytics, or plan workflows — all in plain English.
-            </p>
-          </div>
-          <a
-            href="/ai-copilot"
-            className="btn-primary px-5 py-2.5 rounded-[12px] text-[13px] flex items-center gap-2 shrink-0"
-            style={{ textDecoration: "none" }}
-          >
-            <Sparkles className="w-3.5 h-3.5" /> Open Copilot
-          </a>
-        </div>
-      </div>
     </div>
   );
 }
